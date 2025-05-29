@@ -1,0 +1,49 @@
+# 二进制文件
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+gyweb
+
+# 测试二进制文件
+*.test
+
+# 覆盖率工具生成的文件
+*.out
+*.prof
+*.trace
+
+# IDE 相关
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 依赖目录
+/vendor/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+
+# 临时文件
+/tmp/
+/temp/
+
+# 环境配置
+.env
+.env.local
+
+# 编译输出
+/bin/
+/dist/
+
+# 其他
+*.bak
+*.tmp
+*.temp 
