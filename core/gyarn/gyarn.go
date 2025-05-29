@@ -27,6 +27,13 @@ type Context struct {
 	Keys map[string]interface{}
 }
 
+// Response 标准响应结构
+type Response struct {
+	Code    int         `json:"code"`           // 状态码
+	Message string      `json:"message"`        // 提示信息
+	Data    interface{} `json:"data,omitempty"` // 数据，可选
+}
+
 // NewContext 创建新的上下文
 func NewContext(w http.ResponseWriter, req *http.Request) *Context {
 	return &Context{
@@ -206,13 +213,6 @@ func (c *Context) BindXML(obj interface{}) error {
 		return err
 	}
 	return nil
-}
-
-// Response 标准响应结构
-type Response struct {
-	Code    int         `json:"code"`           // 状态码
-	Message string      `json:"message"`        // 提示信息
-	Data    interface{} `json:"data,omitempty"` // 数据，可选
 }
 
 // Success 成功响应
