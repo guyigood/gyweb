@@ -1,0 +1,5 @@
+package gyweb
+
+func exam() {
+
+}
