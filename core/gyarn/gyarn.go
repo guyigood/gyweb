@@ -207,3 +207,101 @@ func (c *Context) BindXML(obj interface{}) error {
 	}
 	return nil
 }
+
+// Response 标准响应结构
+type Response struct {
+	Code    int         `json:"code"`           // 状态码
+	Message string      `json:"message"`        // 提示信息
+	Data    interface{} `json:"data,omitempty"` // 数据，可选
+}
+
+// Success 成功响应
+func (c *Context) Success(data interface{}) {
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: "success",
+		Data:    data,
+	})
+}
+
+// SuccessWithMessage 带自定义消息的成功响应
+func (c *Context) SuccessWithMessage(message string, data interface{}) {
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: message,
+		Data:    data,
+	})
+}
+
+// Error 错误响应
+func (c *Context) Error(code int, message string) {
+	if code == 0 {
+		code = 500 // 默认错误码
+	}
+	c.JSON(http.StatusOK, Response{
+		Code:    code,
+		Message: message,
+	})
+}
+
+// ErrorWithData 带数据的错误响应
+func (c *Context) ErrorWithData(code int, message string, data interface{}) {
+	if code == 0 {
+		code = 500 // 默认错误码
+	}
+	c.JSON(http.StatusOK, Response{
+		Code:    code,
+		Message: message,
+		Data:    data,
+	})
+}
+
+// 预定义一些常用的错误码
+const (
+	ErrCodeSuccess        = 200 // 成功
+	ErrCodeBadRequest     = 400 // 请求参数错误
+	ErrCodeUnauthorized   = 401 // 未授权
+	ErrCodeForbidden      = 403 // 禁止访问
+	ErrCodeNotFound       = 404 // 资源不存在
+	ErrCodeInternalServer = 500 // 服务器内部错误
+)
+
+// BadRequest 400错误响应
+func (c *Context) BadRequest(message string) {
+	if message == "" {
+		message = "请求参数错误"
+	}
+	c.Error(ErrCodeBadRequest, message)
+}
+
+// Unauthorized 401错误响应
+func (c *Context) Unauthorized(message string) {
+	if message == "" {
+		message = "未授权访问"
+	}
+	c.Error(ErrCodeUnauthorized, message)
+}
+
+// Forbidden 403错误响应
+func (c *Context) Forbidden(message string) {
+	if message == "" {
+		message = "禁止访问"
+	}
+	c.Error(ErrCodeForbidden, message)
+}
+
+// NotFound 404错误响应
+func (c *Context) NotFound(message string) {
+	if message == "" {
+		message = "资源不存在"
+	}
+	c.Error(ErrCodeNotFound, message)
+}
+
+// InternalServerError 500错误响应
+func (c *Context) InternalServerError(message string) {
+	if message == "" {
+		message = "服务器内部错误"
+	}
+	c.Error(ErrCodeInternalServer, message)
+}
