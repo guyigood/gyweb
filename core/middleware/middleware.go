@@ -53,17 +53,15 @@ func CORS() HandlerFunc {
 	}
 }
 
-// Auth 认证中间件
+// Auth 认证中间件（已废弃，请使用 NewAuthManager）
+// Deprecated: 请使用 NewAuthManager 创建认证中间件
 func Auth() HandlerFunc {
-	return func(c *context.Context) {
-		token := c.Request.Header.Get("Authorization")
-		if token == "" {
-			c.Fail(http.StatusUnauthorized, "Unauthorized")
-			return
-		}
-		// TODO: 实现具体的认证逻辑
-		c.Next()
-	}
+	return NewAuthManager().
+		UseCustom(func(c *context.Context) bool {
+			token := c.Request.Header.Get("Authorization")
+			return token != ""
+		}).
+		Build()
 }
 
 // RateLimit 限流中间件
@@ -71,13 +69,20 @@ func RateLimit(limit int) HandlerFunc {
 	// 使用令牌桶算法实现限流
 	tokens := make(chan struct{}, limit)
 	ticker := time.NewTicker(time.Second)
+	done := make(chan struct{})
 
 	// 定期补充令牌
 	go func() {
-		for range ticker.C {
+		defer ticker.Stop()
+		for {
 			select {
-			case tokens <- struct{}{}:
-			default:
+			case <-ticker.C:
+				select {
+				case tokens <- struct{}{}:
+				default:
+				}
+			case <-done:
+				return
 			}
 		}
 	}()
@@ -88,6 +93,10 @@ func RateLimit(limit int) HandlerFunc {
 			c.Next()
 		default:
 			c.Fail(http.StatusTooManyRequests, "Too Many Requests")
+		}
+		// 当中间件被销毁时，停止 ticker
+		if c.IsAborted() {
+			close(done)
 		}
 	}
 }

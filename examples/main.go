@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/guyigood/gyweb/core/context"
 	"github.com/guyigood/gyweb/core/engine"
+	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/middleware"
 )
 
@@ -22,8 +22,8 @@ func main() {
 	r.Use(middleware.CreateSessionAuth())
 
 	// 注册路由
-	r.GET("/", func(c *context.Context) {
-		c.JSON(http.StatusOK, context.H{
+	r.GET("/", func(c *gyarn.Context) {
+		c.JSON(http.StatusOK, gyarn.H{
 			"message": "Welcome to GyWeb!",
 			"time":    time.Now().Format(time.RFC3339),
 		})
@@ -35,23 +35,22 @@ func main() {
 		// 用户相关路由
 		users := api.Group("/users")
 		{
-			users.GET("", func(c *context.Context) {
-
-				c.JSON(http.StatusOK, context.H{
+			users.GET("", func(c *gyarn.Ctx) {
+				c.JSON(http.StatusOK, gyarn.H{
 					"users": []string{"Alice", "Bob", "Charlie"},
 				})
 			})
 
-			users.GET("/:id", func(c *context.Context) {
-				c.JSON(http.StatusOK, context.H{
+			users.GET("/:id", func(c *gyarn.Ctx) {
+				c.JSON(http.StatusOK, gyarn.H{
 					"id":   c.Param("id"),
 					"name": "User " + c.Param("id"),
 				})
 			})
 
-			users.POST("", func(c *context.Context) {
+			users.POST("", func(c *gyarn.Ctx) {
 				name := c.PostForm("name")
-				c.JSON(http.StatusCreated, context.H{
+				c.JSON(http.StatusCreated, gyarn.H{
 					"message": "User created",
 					"name":    name,
 				})
@@ -63,8 +62,8 @@ func main() {
 		admin.Use(middleware.Auth())
 		{
 
-			admin.GET("/dashboard", func(c *context.Context) {
-				c.JSON(http.StatusOK, context.H{
+			admin.GET("/dashboard", func(c *gyarn.Ctx) {
+				c.JSON(http.StatusOK, gyarn.H{
 					"message": "Welcome to admin dashboard",
 				})
 			})

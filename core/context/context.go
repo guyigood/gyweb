@@ -18,22 +18,54 @@ type Context struct {
 	Request    *http.Request
 	Path       string
 	Method     string
-	Params     map[string]string
+	Params     map[string]string // 路由参数
 	StatusCode int
 	Handlers   []HandlerFunc
 	index      int
-	aborted    bool // 添加 aborted 标志
+	aborted    bool
+	// 用于存储请求级别的数据
+	Keys map[string]interface{}
 }
 
 // NewContext 创建新的上下文
 func NewContext(w http.ResponseWriter, req *http.Request) *Context {
 	return &Context{
-		Writer:  w,
-		Request: req,
-		Path:    req.URL.Path,
-		Method:  req.Method,
-		index:   -1,
+		Writer:     w,
+		Request:    req,
+		Path:       req.URL.Path,
+		Method:     req.Method,
+		Params:     make(map[string]string), // 初始化路由参数map
+		StatusCode: http.StatusOK,           // 设置默认状态码
+		Handlers:   make([]HandlerFunc, 0),  // 初始化处理器切片
+		index:      -1,
+		aborted:    false,
+		Keys:       make(map[string]interface{}), // 初始化Keys map
 	}
+}
+
+// Set 存储键值对
+func (c *Context) Set(key string, value interface{}) {
+	if c.Keys == nil {
+		c.Keys = make(map[string]interface{})
+	}
+	c.Keys[key] = value
+}
+
+// Get 获取存储的值
+func (c *Context) Get(key string) (value interface{}, exists bool) {
+	if c.Keys == nil {
+		return nil, false
+	}
+	value, exists = c.Keys[key]
+	return
+}
+
+// MustGet 获取存储的值，如果不存在则panic
+func (c *Context) MustGet(key string) interface{} {
+	if value, exists := c.Get(key); exists {
+		return value
+	}
+	panic("Key \"" + key + "\" does not exist")
 }
 
 // Next 执行下一个中间件
@@ -45,13 +77,23 @@ func (c *Context) Next() {
 	}
 }
 
+// Abort 中止后续中间件的执行
+func (c *Context) Abort() {
+	c.aborted = true
+}
+
+// IsAborted 检查是否已中止
+func (c *Context) IsAborted() bool {
+	return c.aborted
+}
+
 // JSON 发送 JSON 响应
 func (c *Context) JSON(code int, obj interface{}) {
 	c.SetHeader("Content-Type", "application/json")
 	c.Status(code)
 	encoder := json.NewEncoder(c.Writer)
 	if err := encoder.Encode(obj); err != nil {
-		http.Error(c.Writer, err.Error(), 500)
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -61,7 +103,7 @@ func (c *Context) XML(code int, obj interface{}) {
 	c.Status(code)
 	encoder := xml.NewEncoder(c.Writer)
 	if err := encoder.Encode(obj); err != nil {
-		http.Error(c.Writer, err.Error(), 500)
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -115,15 +157,53 @@ func (c *Context) PostForm(key string) string {
 // Fail 返回错误响应
 func (c *Context) Fail(code int, err string) {
 	c.index = len(c.Handlers)
-	c.JSON(code, H{"message": err})
+	c.JSON(code, H{"error": err})
 }
 
-// Abort 中止后续中间件的执行
-func (c *Context) Abort() {
-	c.aborted = true
+// GetHeader 获取请求头
+func (c *Context) GetHeader(key string) string {
+	return c.Request.Header.Get(key)
 }
 
-// IsAborted 检查是否已中止
-func (c *Context) IsAborted() bool {
-	return c.aborted
+// SetCookie 设置Cookie
+func (c *Context) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
+	if path == "" {
+		path = "/"
+	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		MaxAge:   maxAge,
+		Path:     path,
+		Domain:   domain,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+	})
+}
+
+// Cookie 获取Cookie
+func (c *Context) Cookie(name string) (string, error) {
+	cookie, err := c.Request.Cookie(name)
+	if err != nil {
+		return "", err
+	}
+	return cookie.Value, nil
+}
+
+// BindJSON 绑定JSON请求体
+func (c *Context) BindJSON(obj interface{}) error {
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(obj); err != nil {
+		return err
+	}
+	return nil
+}
+
+// BindXML 绑定XML请求体
+func (c *Context) BindXML(obj interface{}) error {
+	decoder := xml.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(obj); err != nil {
+		return err
+	}
+	return nil
 }

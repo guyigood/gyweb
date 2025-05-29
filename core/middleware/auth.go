@@ -116,7 +116,7 @@ func (m *AuthManager) Build() context.HandlerFunc {
 // CreateAuthMiddleware 创建认证中间件
 func CreateAuthMiddleware(config *AuthConfig) context.HandlerFunc {
 	if config == nil {
-		config = &AuthConfig{}
+		config = NewAuthConfig()
 	}
 
 	// 设置默认的未认证处理函数
