@@ -30,7 +30,9 @@ type RouterGroup struct {
 
 // New 创建引擎实例
 func New() *Engine {
-	engine := &Engine{}
+	engine := &Engine{
+		router: router.New(),
+	}
 	engine.RouterGroup = &RouterGroup{engine: engine}
 	engine.groups = []*RouterGroup{engine.RouterGroup}
 	return engine
