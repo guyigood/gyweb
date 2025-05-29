@@ -16,7 +16,7 @@ GyWeb 是一个高性能、轻量级的 Go Web 框架，遵循 Go 语言"简单�
 ### 安装
 
 ```bash
-go get github.com/yourusername/gyweb
+go get github.com/guyigood/gyweb
 ```
 
 ### 示例代码
@@ -26,7 +26,7 @@ package main
 
 import (
     "net/http"
-    "github.com/yourusername/gyweb"
+    "github.com/guyigood/gyweb"
 )
 
 func main() {
