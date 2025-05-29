@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/guyigood/gyweb/core/context"
+	"github.com/guyigood/gyweb/core/gyarn"
 )
 
 // HandlerFunc 使用 context 包中的 HandlerFunc 类型
-type HandlerFunc = context.HandlerFunc
+type HandlerFunc = gyarn.HandlerFunc
 
 // Logger 日志中间件
 func Logger() HandlerFunc {
-	return func(c *context.Context) {
+	return func(c *gyarn.Context) {
 		// 开始时间
 		t := time.Now()
 		// 处理请求
@@ -25,7 +25,7 @@ func Logger() HandlerFunc {
 
 // Recovery 恢复中间件
 func Recovery() HandlerFunc {
-	return func(c *context.Context) {
+	return func(c *gyarn.Context) {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("panic recovered: %v", err)
@@ -38,7 +38,7 @@ func Recovery() HandlerFunc {
 
 // CORS 跨域中间件
 func CORS() HandlerFunc {
-	return func(c *context.Context) {
+	return func(c *gyarn.Context) {
 		c.SetHeader("Access-Control-Allow-Origin", "*")
 		c.SetHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
@@ -57,7 +57,7 @@ func CORS() HandlerFunc {
 // Deprecated: 请使用 NewAuthManager 创建认证中间件
 func Auth() HandlerFunc {
 	return NewAuthManager().
-		UseCustom(func(c *context.Context) bool {
+		UseCustom(func(c *gyarn.Context) bool {
 			token := c.Request.Header.Get("Authorization")
 			return token != ""
 		}).
@@ -87,7 +87,7 @@ func RateLimit(limit int) HandlerFunc {
 		}
 	}()
 
-	return func(c *context.Context) {
+	return func(c *gyarn.Context) {
 		select {
 		case <-tokens:
 			c.Next()

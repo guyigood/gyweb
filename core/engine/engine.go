@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/guyigood/gyweb/core/context"
+	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/middleware"
 	"github.com/guyigood/gyweb/core/router"
 )
@@ -106,7 +106,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	c := context.NewContext(w, req)
+	c := gyarn.NewContext(w, req)
 	c.Handlers = middlewares
 	engine.router.GetRoute(req.Method, req.URL.Path)
 
@@ -115,7 +115,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		key := req.Method + "-" + node.Pattern
 		c.Handlers = append(c.Handlers, engine.router.GetHandlers(key)...)
 	} else {
-		c.Handlers = append(c.Handlers, func(c *context.Context) {
+		c.Handlers = append(c.Handlers, func(c *gyarn.Context) {
 			c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
 		})
 	}

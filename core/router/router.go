@@ -3,11 +3,11 @@ package router
 import (
 	"strings"
 
-	"github.com/guyigood/gyweb/core/context"
+	"github.com/guyigood/gyweb/core/gyarn"
 )
 
 // HandlerFunc 使用 context 包中的 HandlerFunc 类型
-type HandlerFunc = context.HandlerFunc
+type HandlerFunc = gyarn.HandlerFunc
 
 // node 路由树节点
 type node struct {

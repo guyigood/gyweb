@@ -35,20 +35,21 @@ func main() {
 		// 用户相关路由
 		users := api.Group("/users")
 		{
-			users.GET("", func(c *gyarn.Ctx) {
+			users.GET("", func(c *gyarn.Context) {
+				//初始化gyarn的H
 				c.JSON(http.StatusOK, gyarn.H{
 					"users": []string{"Alice", "Bob", "Charlie"},
 				})
 			})
 
-			users.GET("/:id", func(c *gyarn.Ctx) {
+			users.GET("/:id", func(c *gyarn.Context) {
 				c.JSON(http.StatusOK, gyarn.H{
 					"id":   c.Param("id"),
 					"name": "User " + c.Param("id"),
 				})
 			})
 
-			users.POST("", func(c *gyarn.Ctx) {
+			users.POST("", func(c *gyarn.Context) {
 				name := c.PostForm("name")
 				c.JSON(http.StatusCreated, gyarn.H{
 					"message": "User created",
@@ -62,7 +63,7 @@ func main() {
 		admin.Use(middleware.Auth())
 		{
 
-			admin.GET("/dashboard", func(c *gyarn.Ctx) {
+			admin.GET("/dashboard", func(c *gyarn.Context) {
 				c.JSON(http.StatusOK, gyarn.H{
 					"message": "Welcome to admin dashboard",
 				})

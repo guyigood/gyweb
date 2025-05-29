@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/guyigood/gyweb/core/context"
+	"github.com/guyigood/gyweb/core/gyarn"
 )
 
 var (
@@ -46,7 +46,7 @@ func debugLog(format string, args ...interface{}) {
 }
 
 // debugAuth 输出认证相关的调试信息
-func debugAuth(c *context.Context, msg string, args ...interface{}) {
+func debugAuth(c *gyarn.Context, msg string, args ...interface{}) {
 	if IsDebugEnabled() {
 		debugLogger.Output(2, fmt.Sprintf("[Auth] %s - %s %s: %s",
 			c.Request.RemoteAddr,
@@ -69,7 +69,7 @@ func debugWhitelist(path string, matched bool, matchType string) {
 }
 
 // debugAuthFunc 输出认证函数执行的调试信息
-func debugAuthFunc(c *context.Context, success bool) {
+func debugAuthFunc(c *gyarn.Context, success bool) {
 	if IsDebugEnabled() {
 		debugLogger.Output(2, fmt.Sprintf("[AuthFunc] %s - %s %s: %v",
 			c.Request.RemoteAddr,
@@ -81,7 +81,7 @@ func debugAuthFunc(c *context.Context, success bool) {
 }
 
 // debugUnauthorized 输出未授权处理的调试信息
-func debugUnauthorized(c *context.Context) {
+func debugUnauthorized(c *gyarn.Context) {
 	if IsDebugEnabled() {
 		debugLogger.Output(2, fmt.Sprintf("[Unauthorized] %s - %s %s",
 			c.Request.RemoteAddr,

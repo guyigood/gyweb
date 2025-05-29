@@ -5,13 +5,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/guyigood/gyweb/core/context"
+	"github.com/guyigood/gyweb/core/gyarn"
 )
 
 // AuthConfig 认证中间件配置
 type AuthConfig struct {
 	// 认证函数，返回 true 表示认证通过
-	AuthFunc func(*context.Context) bool
+	AuthFunc func(*gyarn.Context) bool
 	// 白名单路径列表（精确匹配）
 	WhitelistPaths []string
 	// 白名单路径前缀列表
@@ -19,7 +19,7 @@ type AuthConfig struct {
 	// 白名单正则表达式列表
 	WhitelistPatterns []*regexp.Regexp
 	// 未认证时的处理函数
-	UnauthorizedHandler func(*context.Context)
+	UnauthorizedHandler func(*gyarn.Context)
 }
 
 // AuthManager 认证管理器
@@ -37,7 +37,7 @@ func NewAuthManager() *AuthManager {
 // UseJWT 使用JWT认证
 func (m *AuthManager) UseJWT(config *JWTConfig) *AuthManager {
 	m.config = NewAuthConfig()
-	m.config.SetAuthFunc(func(c *context.Context) bool {
+	m.config.SetAuthFunc(func(c *gyarn.Context) bool {
 		// TODO: 实现JWT验证逻辑
 		return false
 	})
@@ -56,7 +56,7 @@ func (m *AuthManager) UseJWT(config *JWTConfig) *AuthManager {
 // UseSession 使用Session认证
 func (m *AuthManager) UseSession() *AuthManager {
 	m.config = NewAuthConfig()
-	m.config.SetAuthFunc(func(c *context.Context) bool {
+	m.config.SetAuthFunc(func(c *gyarn.Context) bool {
 		// TODO: 实现Session验证逻辑
 		return false
 	})
@@ -71,7 +71,7 @@ func (m *AuthManager) UseSession() *AuthManager {
 // UseBasic 使用Basic认证
 func (m *AuthManager) UseBasic(users map[string]string) *AuthManager {
 	m.config = NewAuthConfig()
-	m.config.SetAuthFunc(func(c *context.Context) bool {
+	m.config.SetAuthFunc(func(c *gyarn.Context) bool {
 		username, password, ok := c.Request.BasicAuth()
 		if !ok {
 			return false
@@ -83,7 +83,7 @@ func (m *AuthManager) UseBasic(users map[string]string) *AuthManager {
 }
 
 // UseCustom 使用自定义认证
-func (m *AuthManager) UseCustom(authFunc func(*context.Context) bool) *AuthManager {
+func (m *AuthManager) UseCustom(authFunc func(*gyarn.Context) bool) *AuthManager {
 	m.config.SetAuthFunc(authFunc)
 	return m
 }
@@ -103,25 +103,25 @@ func (m *AuthManager) AddWhitelist(paths []string, prefixes []string, patterns [
 }
 
 // SetUnauthorizedHandler 设置未授权处理函数
-func (m *AuthManager) SetUnauthorizedHandler(handler func(*context.Context)) *AuthManager {
+func (m *AuthManager) SetUnauthorizedHandler(handler func(*gyarn.Context)) *AuthManager {
 	m.config.SetUnauthorizedHandler(handler)
 	return m
 }
 
 // Build 构建认证中间件
-func (m *AuthManager) Build() context.HandlerFunc {
+func (m *AuthManager) Build() gyarn.HandlerFunc {
 	return CreateAuthMiddleware(m.config)
 }
 
 // CreateAuthMiddleware 创建认证中间件
-func CreateAuthMiddleware(config *AuthConfig) context.HandlerFunc {
+func CreateAuthMiddleware(config *AuthConfig) gyarn.HandlerFunc {
 	if config == nil {
 		config = NewAuthConfig()
 	}
 
 	// 设置默认的未认证处理函数
 	if config.UnauthorizedHandler == nil {
-		config.UnauthorizedHandler = func(c *context.Context) {
+		config.UnauthorizedHandler = func(c *gyarn.Context) {
 			c.JSON(http.StatusUnauthorized, map[string]interface{}{
 				"code":    401,
 				"message": "未授权访问",
@@ -129,7 +129,7 @@ func CreateAuthMiddleware(config *AuthConfig) context.HandlerFunc {
 		}
 	}
 
-	return func(c *context.Context) {
+	return func(c *gyarn.Context) {
 		debugAuth(c, "开始认证检查")
 
 		// 检查是否在白名单中
@@ -219,13 +219,13 @@ func (c *AuthConfig) AddWhitelistPattern(patterns ...string) *AuthConfig {
 }
 
 // SetAuthFunc 设置认证函数
-func (c *AuthConfig) SetAuthFunc(fn func(*context.Context) bool) *AuthConfig {
+func (c *AuthConfig) SetAuthFunc(fn func(*gyarn.Context) bool) *AuthConfig {
 	c.AuthFunc = fn
 	return c
 }
 
 // SetUnauthorizedHandler 设置未认证处理函数
-func (c *AuthConfig) SetUnauthorizedHandler(handler func(*context.Context)) *AuthConfig {
+func (c *AuthConfig) SetUnauthorizedHandler(handler func(*gyarn.Context)) *AuthConfig {
 	c.UnauthorizedHandler = handler
 	return c
 }
@@ -240,11 +240,11 @@ type JWTConfig struct {
 }
 
 // CreateJWTAuth 创建JWT认证中间件
-func CreateJWTAuth(config *JWTConfig) context.HandlerFunc {
+func CreateJWTAuth(config *JWTConfig) gyarn.HandlerFunc {
 	authConfig := NewAuthConfig()
 
 	// 设置JWT认证函数
-	authConfig.SetAuthFunc(func(c *context.Context) bool {
+	authConfig.SetAuthFunc(func(c *gyarn.Context) bool {
 		// TODO: 实现JWT验证逻辑
 		// 这里需要根据实际使用的JWT库来实现
 		return false
@@ -267,11 +267,11 @@ func CreateJWTAuth(config *JWTConfig) context.HandlerFunc {
 }
 
 // CreateSessionAuth 创建Session认证中间件
-func CreateSessionAuth() context.HandlerFunc {
+func CreateSessionAuth() gyarn.HandlerFunc {
 	authConfig := NewAuthConfig()
 
 	// 设置Session认证函数
-	authConfig.SetAuthFunc(func(c *context.Context) bool {
+	authConfig.SetAuthFunc(func(c *gyarn.Context) bool {
 		// TODO: 实现Session验证逻辑
 		// 这里需要根据实际使用的Session库来实现
 		return false
@@ -288,11 +288,11 @@ func CreateSessionAuth() context.HandlerFunc {
 }
 
 // CreateBasicAuth 创建Basic认证中间件
-func CreateBasicAuth(users map[string]string) context.HandlerFunc {
+func CreateBasicAuth(users map[string]string) gyarn.HandlerFunc {
 	authConfig := NewAuthConfig()
 
 	// 设置Basic认证函数
-	authConfig.SetAuthFunc(func(c *context.Context) bool {
+	authConfig.SetAuthFunc(func(c *gyarn.Context) bool {
 		username, password, ok := c.Request.BasicAuth()
 		if !ok {
 			return false
