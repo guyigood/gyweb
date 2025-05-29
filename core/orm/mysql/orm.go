@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/guyigood/gyweb/core/middleware"
 )
 
 // DB 数据库连接结构
@@ -222,22 +223,27 @@ func (q *Query) buildQuery() (string, []interface{}) {
 	return sql.String(), args
 }
 
-// 修改所有数据库操作方法以支持事务
+// execQuery 执行查询并记录 SQL 调试日志
 func (q *Query) execQuery(sql string, args ...interface{}) (*sql.Rows, error) {
+	middleware.DebugSQL(sql, args...)
 	if q.tx != nil {
 		return q.tx.tx.Query(sql, args...)
 	}
 	return q.db.db.Query(sql, args...)
 }
 
+// execRow 执行单行查询并记录 SQL 调试日志
 func (q *Query) execRow(sql string, args ...interface{}) *sql.Row {
+	middleware.DebugSQL(sql, args...)
 	if q.tx != nil {
 		return q.tx.tx.QueryRow(sql, args...)
 	}
 	return q.db.db.QueryRow(sql, args...)
 }
 
+// exec 执行更新操作并记录 SQL 调试日志
 func (q *Query) exec(sql string, args ...interface{}) (sql.Result, error) {
+	middleware.DebugSQL(sql, args...)
 	if q.tx != nil {
 		return q.tx.tx.Exec(sql, args...)
 	}

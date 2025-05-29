@@ -90,3 +90,13 @@ func debugUnauthorized(c *gyarn.Context) {
 		))
 	}
 }
+
+// DebugSQL 输出 SQL 语句和参数的调试信息
+func DebugSQL(sql string, args ...interface{}) {
+	if IsDebugEnabled() {
+		debugLogger.Output(2, fmt.Sprintf("[SQL] Query: %s\nArgs: %v",
+			sql,
+			args,
+		))
+	}
+}
