@@ -17,7 +17,7 @@ func main() {
 		SecretKey:     "your-secret-key",           // JWT密钥
 		TokenLookup:   "header:Authorization",      // 从请求头获取token
 		TokenHeadName: "Bearer",                    // token前缀
-		ExpiresIn:     24 * time.Hour,              // token过期时间
+		ExpiresIn:     2*24 * time.Hour,              // token过期时间
 	}
 
 	// 创建JWT认证中间件
