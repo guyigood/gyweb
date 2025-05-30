@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 )
 
@@ -307,4 +308,19 @@ func (c *Context) InternalServerError(message string) {
 		message = "服务器内部错误"
 	}
 	c.Error(ErrCodeInternalServer, message)
+}
+
+// FormFile 获取上传的文件
+func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
+	if c.Request.MultipartForm == nil {
+		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+			return nil, err
+		}
+	}
+	f, fh, err := c.Request.FormFile(name)
+	if err != nil {
+		return nil, err
+	}
+	f.Close()
+	return fh, nil
 }
