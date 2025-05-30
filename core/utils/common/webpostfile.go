@@ -4,7 +4,6 @@ import (
 	"io"
 	"math/rand"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,12 +13,11 @@ import (
 )
 
 // UploadFile 上传文件,参数filename为上传的文件名,参数uploadPath为上传的文件路径
-func UploadFile(c *gyarn.Context, filename string, uploadPath string) {
+func UploadFile(c *gyarn.Context, filename string, uploadPath string) (string, error) {
 	// 获取上传的文件
 	file, err := c.FormFile(filename)
 	if err != nil {
-		c.Error(http.StatusBadRequest, err.Error())
-		return
+		return "", err
 	}
 	//默认/upload/  同时检查是否创建了目录
 	if uploadPath == "" {
@@ -34,12 +32,7 @@ func UploadFile(c *gyarn.Context, filename string, uploadPath string) {
 	// 创建目录
 	os.MkdirAll(uploadPath, 0755)
 	// 保存文件
-	filePath, err := SaveFileSecure(file, uploadPath)
-	if err != nil {
-		c.Error(http.StatusInternalServerError, err.Error())
-		return
-	}
-	c.Success(filePath)
+	return SaveFileSecure(file, uploadPath)
 
 }
 
