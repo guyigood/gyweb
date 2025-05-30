@@ -3,6 +3,7 @@ package gyarn
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"net/http"
 )
 
@@ -72,7 +73,9 @@ func (c *Context) MustGet(key string) interface{} {
 	if value, exists := c.Get(key); exists {
 		return value
 	}
-	panic("Key \"" + key + "\" does not exist")
+	fmt.Println("Key \"" + key + "\" does not exist")
+	return nil
+
 }
 
 // Next 执行下一个中间件
