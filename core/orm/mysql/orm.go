@@ -14,18 +14,7 @@ import (
 // DB 数据库连接结构
 type DB struct {
 	db *sql.DB
-}
-
-// Tx 事务结构
-type Tx struct {
-	tx *sql.Tx
-	db *DB
-}
-
-// Query 查询构建器
-type Query struct {
-	db        *DB
-	tx        *Tx
+	// 查询构建器字段
 	table     string
 	fields    []string
 	where     []string
@@ -69,35 +58,16 @@ func NewDB(driver, dsn string) (*DB, error) {
 	return &DB{db: db}, nil
 }
 
-// Begin 开始事务
-func (db *DB) Begin() (*Tx, error) {
-	tx, err := db.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	return &Tx{tx: tx, db: db}, nil
+// Table 指定表名
+func (db *DB) Table(name string) *DB {
+	db.resetQuery()
+	db.table = name
+	return db
 }
 
-// Commit 提交事务
-func (tx *Tx) Commit() error {
-	return tx.tx.Commit()
-}
-
-// Rollback 回滚事务
-func (tx *Tx) Rollback() error {
-	return tx.tx.Rollback()
-}
-
-// Table 指定表名（事务版本）
-func (tx *Tx) Table(name string) *Query {
-	return &Query{
-		tx:    tx,
-		table: name,
-	}
-}
-
-// Model 使用模型（事务版本）
-func (tx *Tx) Model(model interface{}) *Query {
+// Model 使用模型
+func (db *DB) Model(model interface{}) *DB {
+	db.resetQuery()
 	var tableName string
 	if m, ok := model.(Model); ok {
 		tableName = m.TableName()
@@ -115,146 +85,131 @@ func (tx *Tx) Model(model interface{}) *Query {
 			tableName = strings.ToLower(t.Name())
 		}
 	}
-
-	return &Query{
-		tx:    tx,
-		table: tableName,
-	}
+	db.table = tableName
+	return db
 }
 
 // Select 指定查询字段
-func (q *Query) Select(fields ...string) *Query {
-	q.fields = fields
-	return q
+func (db *DB) Select(fields ...string) *DB {
+	db.fields = fields
+	return db
 }
 
 // Where 添加查询条件
-func (q *Query) Where(condition string, args ...interface{}) *Query {
-	q.where = append(q.where, condition)
-	q.whereArgs = append(q.whereArgs, args...)
-	return q
+func (db *DB) Where(condition string, args ...interface{}) *DB {
+	db.where = append(db.where, condition)
+	db.whereArgs = append(db.whereArgs, args...)
+	return db
 }
 
 // OrderBy 指定排序
-func (q *Query) OrderBy(order string) *Query {
-	q.orderBy = order
-	return q
+func (db *DB) OrderBy(order string) *DB {
+	db.orderBy = order
+	return db
 }
 
 // Limit 限制返回数量
-func (q *Query) Limit(limit int) *Query {
-	q.limit = limit
-	return q
+func (db *DB) Limit(limit int) *DB {
+	db.limit = limit
+	return db
 }
 
 // Offset 指定偏移量
-func (q *Query) Offset(offset int) *Query {
-	q.offset = offset
-	return q
+func (db *DB) Offset(offset int) *DB {
+	db.offset = offset
+	return db
 }
 
 // Join 添加连接查询
-func (q *Query) Join(join string) *Query {
-	q.joins = append(q.joins, join)
-	return q
+func (db *DB) Join(join string) *DB {
+	db.joins = append(db.joins, join)
+	return db
 }
 
 // GroupBy 指定分组
-func (q *Query) GroupBy(group string) *Query {
-	q.groupBy = group
-	return q
+func (db *DB) GroupBy(group string) *DB {
+	db.groupBy = group
+	return db
 }
 
 // Having 添加分组条件
-func (q *Query) Having(having string) *Query {
-	q.having = having
-	return q
+func (db *DB) Having(having string) *DB {
+	db.having = having
+	return db
+}
+
+// resetQuery 重置查询构建器
+func (db *DB) resetQuery() {
+	db.table = ""
+	db.fields = nil
+	db.where = nil
+	db.whereArgs = nil
+	db.orderBy = ""
+	db.limit = 0
+	db.offset = 0
+	db.joins = nil
+	db.groupBy = ""
+	db.having = ""
 }
 
 // buildQuery 构建查询语句
-func (q *Query) buildQuery() (string, []interface{}) {
+func (db *DB) buildQuery() (string, []interface{}) {
 	var sql strings.Builder
 	var args []interface{}
 
 	// SELECT 部分
-	if len(q.fields) > 0 {
-		sql.WriteString("SELECT " + strings.Join(q.fields, ", "))
+	if len(db.fields) > 0 {
+		sql.WriteString("SELECT " + strings.Join(db.fields, ", "))
 	} else {
 		sql.WriteString("SELECT *")
 	}
 
 	// FROM 部分
-	sql.WriteString(" FROM " + q.table)
+	sql.WriteString(" FROM " + db.table)
 
 	// JOIN 部分
-	if len(q.joins) > 0 {
-		sql.WriteString(" " + strings.Join(q.joins, " "))
+	if len(db.joins) > 0 {
+		sql.WriteString(" " + strings.Join(db.joins, " "))
 	}
 
 	// WHERE 部分
-	if len(q.where) > 0 {
-		sql.WriteString(" WHERE " + strings.Join(q.where, " AND "))
-		args = append(args, q.whereArgs...)
+	if len(db.where) > 0 {
+		sql.WriteString(" WHERE " + strings.Join(db.where, " AND "))
+		args = append(args, db.whereArgs...)
 	}
 
 	// GROUP BY 部分
-	if q.groupBy != "" {
-		sql.WriteString(" GROUP BY " + q.groupBy)
+	if db.groupBy != "" {
+		sql.WriteString(" GROUP BY " + db.groupBy)
 	}
 
 	// HAVING 部分
-	if q.having != "" {
-		sql.WriteString(" HAVING " + q.having)
+	if db.having != "" {
+		sql.WriteString(" HAVING " + db.having)
 	}
 
 	// ORDER BY 部分
-	if q.orderBy != "" {
-		sql.WriteString(" ORDER BY " + q.orderBy)
+	if db.orderBy != "" {
+		sql.WriteString(" ORDER BY " + db.orderBy)
 	}
 
 	// LIMIT 和 OFFSET 部分
-	if q.limit > 0 {
-		sql.WriteString(fmt.Sprintf(" LIMIT %d", q.limit))
-		if q.offset > 0 {
-			sql.WriteString(fmt.Sprintf(" OFFSET %d", q.offset))
+	if db.limit > 0 {
+		sql.WriteString(fmt.Sprintf(" LIMIT %d", db.limit))
+		if db.offset > 0 {
+			sql.WriteString(fmt.Sprintf(" OFFSET %d", db.offset))
 		}
 	}
 
 	return sql.String(), args
 }
 
-// execQuery 执行查询并记录 SQL 调试日志
-func (q *Query) execQuery(sql string, args ...interface{}) (*sql.Rows, error) {
-	middleware.DebugSQL(sql, args...)
-	if q.tx != nil {
-		return q.tx.tx.Query(sql, args...)
-	}
-	return q.db.db.Query(sql, args...)
-}
-
-// execRow 执行单行查询并记录 SQL 调试日志
-func (q *Query) execRow(sql string, args ...interface{}) *sql.Row {
-	middleware.DebugSQL(sql, args...)
-	if q.tx != nil {
-		return q.tx.tx.QueryRow(sql, args...)
-	}
-	return q.db.db.QueryRow(sql, args...)
-}
-
-// exec 执行更新操作并记录 SQL 调试日志
-func (q *Query) exec(sql string, args ...interface{}) (sql.Result, error) {
-	middleware.DebugSQL(sql, args...)
-	if q.tx != nil {
-		return q.tx.tx.Exec(sql, args...)
-	}
-	return q.db.db.Exec(sql, args...)
-}
-
 // Get 获取单条记录到 map
-func (q *Query) Get() (MapModel, error) {
-	q.limit = 1
-	sql, args := q.buildQuery()
-	rows, err := q.execQuery(sql, args...)
+func (db *DB) Get() (MapModel, error) {
+	db.limit = 1
+	sql, args := db.buildQuery()
+	middleware.DebugSQL(sql, args...)
+	rows, err := db.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +220,6 @@ func (q *Query) Get() (MapModel, error) {
 		return nil, err
 	}
 
-	// 准备接收数据的切片
 	values := make([]interface{}, len(columns))
 	valuePtrs := make([]interface{}, len(columns))
 	for i := range values {
@@ -280,7 +234,6 @@ func (q *Query) Get() (MapModel, error) {
 		return nil, err
 	}
 
-	// 将结果转换为 map
 	result := make(MapModel)
 	for i, col := range columns {
 		val := values[i]
@@ -295,9 +248,10 @@ func (q *Query) Get() (MapModel, error) {
 }
 
 // All 获取多条记录到 map 切片
-func (q *Query) All() ([]MapModel, error) {
-	sql, args := q.buildQuery()
-	rows, err := q.execQuery(sql, args...)
+func (db *DB) All() ([]MapModel, error) {
+	sql, args := db.buildQuery()
+	middleware.DebugSQL(sql, args...)
+	rows, err := db.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +264,6 @@ func (q *Query) All() ([]MapModel, error) {
 
 	var results []MapModel
 	for rows.Next() {
-		// 准备接收数据的切片
 		values := make([]interface{}, len(columns))
 		valuePtrs := make([]interface{}, len(columns))
 		for i := range values {
@@ -321,7 +274,6 @@ func (q *Query) All() ([]MapModel, error) {
 			return nil, err
 		}
 
-		// 将结果转换为 map
 		result := make(MapModel)
 		for i, col := range columns {
 			val := values[i]
@@ -338,7 +290,7 @@ func (q *Query) All() ([]MapModel, error) {
 }
 
 // Insert 插入数据（支持 map 和结构体）
-func (q *Query) Insert(data interface{}) (int64, error) {
+func (db *DB) Insert(data interface{}) (int64, error) {
 	var fields []string
 	var placeholders []string
 	var args []interface{}
@@ -346,14 +298,13 @@ func (q *Query) Insert(data interface{}) (int64, error) {
 	switch v := data.(type) {
 	case map[string]interface{}:
 		for field, value := range v {
-			if field != "_table" { // 忽略表名字段
+			if field != "_table" {
 				fields = append(fields, field)
 				placeholders = append(placeholders, "?")
 				args = append(args, value)
 			}
 		}
 	case Model:
-		// 使用反射获取结构体字段
 		val := reflect.ValueOf(v)
 		if val.Kind() == reflect.Ptr {
 			val = val.Elem()
@@ -361,7 +312,6 @@ func (q *Query) Insert(data interface{}) (int64, error) {
 		typ := val.Type()
 		for i := 0; i < val.NumField(); i++ {
 			field := typ.Field(i)
-			// 获取字段标签或字段名
 			column := field.Tag.Get("db")
 			if column == "" {
 				column = strings.ToLower(field.Name)
@@ -375,11 +325,12 @@ func (q *Query) Insert(data interface{}) (int64, error) {
 	}
 
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-		q.table,
+		db.table,
 		strings.Join(fields, ", "),
 		strings.Join(placeholders, ", "))
 
-	result, err := q.exec(sql, args...)
+	middleware.DebugSQL(sql, args...)
+	result, err := db.db.Exec(sql, args...)
 	if err != nil {
 		return 0, err
 	}
@@ -388,20 +339,19 @@ func (q *Query) Insert(data interface{}) (int64, error) {
 }
 
 // Update 更新数据（支持 map 和结构体）
-func (q *Query) Update(data interface{}) (int64, error) {
+func (db *DB) Update(data interface{}) (int64, error) {
 	var sets []string
 	var args []interface{}
 
 	switch v := data.(type) {
 	case map[string]interface{}:
 		for field, value := range v {
-			if field != "_table" { // 忽略表名字段
+			if field != "_table" {
 				sets = append(sets, field+" = ?")
 				args = append(args, value)
 			}
 		}
 	case Model:
-		// 使用反射获取结构体字段
 		val := reflect.ValueOf(v)
 		if val.Kind() == reflect.Ptr {
 			val = val.Elem()
@@ -409,7 +359,6 @@ func (q *Query) Update(data interface{}) (int64, error) {
 		typ := val.Type()
 		for i := 0; i < val.NumField(); i++ {
 			field := typ.Field(i)
-			// 获取字段标签或字段名
 			column := field.Tag.Get("db")
 			if column == "" {
 				column = strings.ToLower(field.Name)
@@ -421,14 +370,15 @@ func (q *Query) Update(data interface{}) (int64, error) {
 		return 0, fmt.Errorf("unsupported data type: %T", data)
 	}
 
-	sql := fmt.Sprintf("UPDATE %s SET %s", q.table, strings.Join(sets, ", "))
+	sql := fmt.Sprintf("UPDATE %s SET %s", db.table, strings.Join(sets, ", "))
 
-	if len(q.where) > 0 {
-		sql += " WHERE " + strings.Join(q.where, " AND ")
-		args = append(args, q.whereArgs...)
+	if len(db.where) > 0 {
+		sql += " WHERE " + strings.Join(db.where, " AND ")
+		args = append(args, db.whereArgs...)
 	}
 
-	result, err := q.exec(sql, args...)
+	middleware.DebugSQL(sql, args...)
+	result, err := db.db.Exec(sql, args...)
 	if err != nil {
 		return 0, err
 	}
@@ -437,14 +387,15 @@ func (q *Query) Update(data interface{}) (int64, error) {
 }
 
 // Delete 删除数据
-func (q *Query) Delete() (int64, error) {
-	sql := fmt.Sprintf("DELETE FROM %s", q.table)
+func (db *DB) Delete() (int64, error) {
+	sql := fmt.Sprintf("DELETE FROM %s", db.table)
 
-	if len(q.where) > 0 {
-		sql += " WHERE " + strings.Join(q.where, " AND ")
+	if len(db.where) > 0 {
+		sql += " WHERE " + strings.Join(db.where, " AND ")
 	}
 
-	result, err := q.exec(sql, q.whereArgs...)
+	middleware.DebugSQL(sql, db.whereArgs...)
+	result, err := db.db.Exec(sql, db.whereArgs...)
 	if err != nil {
 		return 0, err
 	}
@@ -453,11 +404,15 @@ func (q *Query) Delete() (int64, error) {
 }
 
 // Transaction 执行事务函数
-func (db *DB) Transaction(fn func(*Tx) error) error {
-	tx, err := db.Begin()
+func (db *DB) Transaction(fn func(*DB) error) error {
+	tx, err := db.db.Begin()
 	if err != nil {
 		return err
 	}
+
+	// 创建事务DB对象
+	txDB := &DB{db: db.db}
+	txDB.db = db.db
 
 	defer func() {
 		if p := recover(); p != nil {
@@ -466,7 +421,7 @@ func (db *DB) Transaction(fn func(*Tx) error) error {
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	if err := fn(txDB); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
