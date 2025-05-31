@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
+	"strings"
 )
 
 // HandlerFunc 定义处理函数类型
@@ -125,8 +128,11 @@ func (c *Context) String(code int, format string, values ...interface{}) {
 	c.Writer.Write([]byte(format))
 }
 
-// Data 发送数据响应
-func (c *Context) Data(code int, data []byte) {
+// Data 发送数据响应，支持设置Content-Type
+func (c *Context) Data(code int, contentType string, data []byte) {
+	if contentType != "" {
+		c.SetHeader("Content-Type", contentType)
+	}
 	c.Status(code)
 	c.Writer.Write(data)
 }
@@ -158,6 +164,14 @@ func (c *Context) Param(key string) string {
 // Query 获取查询参数
 func (c *Context) Query(key string) string {
 	return c.Request.URL.Query().Get(key)
+}
+
+// DefaultQuery 获取查询参数，如果不存在则返回默认值
+func (c *Context) DefaultQuery(key, defaultValue string) string {
+	if value := c.Query(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // PostForm 获取表单参数
@@ -201,13 +215,14 @@ func (c *Context) Cookie(name string) (string, error) {
 	return cookie.Value, nil
 }
 
-// BindJSON 绑定JSON请求体
+// BindJSON 绑定 JSON 数据到结构体
 func (c *Context) BindJSON(obj interface{}) error {
-	decoder := json.NewDecoder(c.Request.Body)
-	if err := decoder.Decode(obj); err != nil {
-		return err
-	}
-	return nil
+	return json.NewDecoder(c.Request.Body).Decode(obj)
+}
+
+// ShouldBindJSON 绑定 JSON 数据到结构体（别名方法）
+func (c *Context) ShouldBindJSON(obj interface{}) error {
+	return c.BindJSON(obj)
 }
 
 // BindXML 绑定XML请求体
@@ -323,4 +338,33 @@ func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 	}
 	f.Close()
 	return fh, nil
+}
+
+// GetRawData 获取请求的原始数据
+func (c *Context) GetRawData() ([]byte, error) {
+	return io.ReadAll(c.Request.Body)
+}
+
+// ClientIP 获取客户端IP地址
+func (c *Context) ClientIP() string {
+	clientIP := c.Request.Header.Get("X-Forwarded-For")
+	clientIP = strings.TrimSpace(strings.Split(clientIP, ",")[0])
+	if clientIP == "" {
+		clientIP = strings.TrimSpace(c.Request.Header.Get("X-Real-Ip"))
+	}
+	if clientIP != "" {
+		return clientIP
+	}
+	if addr := c.Request.Header.Get("X-Appengine-Remote-Addr"); addr != "" {
+		return addr
+	}
+	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request.RemoteAddr)); err == nil {
+		return ip
+	}
+	return ""
+}
+
+// Header 设置响应头
+func (c *Context) Header(key, value string) {
+	c.Writer.Header().Set(key, value)
 }

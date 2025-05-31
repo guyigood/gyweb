@@ -1,128 +1,289 @@
-# GyWeb
+# GyWeb - 高性能Go Web框架
 
-GyWeb 是一个高性能、轻量级的 Go Web 框架，遵循 Go 语言"简单胜于复杂"的哲学，提供常用 Web 开发功能而不臃肿。
+一个简洁、高效、功能完整的Go Web框架，提供企业级应用开发所需的全套功能。
 
-## 特性
+## ✨ 功能特性
 
-- 🚀 高性能：基于 Radix 树的路由，优化的中间件链
-- 🎯 轻量级：核心功能精简，易于理解和扩展
-- 🔌 中间件：支持中间件链式调用，内置常用中间件
-- 📦 模块化：核心功能模块化，易于扩展
-- 🛡️ 安全：内置安全防护，防止常见 Web 攻击
-- 📝 文档：详细的文档和示例
+### 🚀 核心功能
+- **高性能路由**: 基于前缀树的高效路由匹配
+- **中间件支持**: 灵活的中间件机制，支持全局和分组中间件
+- **模板引擎**: 内置HTML模板渲染，支持自定义模板函数
+- **静态文件服务**: 高效的静态资源服务
+- **分组路由**: 支持路由分组，便于API版本管理
 
-## 快速开始
+### 🛡️ 安全防护
+- **跨域处理**: 完整的CORS支持
+- **认证授权**: JWT认证中间件
+- **请求验证**: 参数验证和数据绑定
+- **安全头**: 自动添加安全响应头
+
+### 🔧 实用工具
+- **数据库集成**: 支持MySQL、PostgreSQL、SQLite
+- **Redis支持**: 完整的Redis操作封装
+- **日志系统**: 结构化日志记录
+- **配置管理**: 环境变量和配置文件支持
+- **优雅关闭**: 服务器优雅关闭处理
+
+### 📱 第三方服务集成
+- **微信支付**: 完整的微信支付API集成
+- **支付宝**: 支付宝支付接口支持
+- **微信小程序**: 小程序登录、用户信息、模板消息
+- **微信公众号**: 用户管理、消息推送、菜单管理、二维码生成、网页授权
+- **钉钉集成**: 企业应用、消息推送、审批流程
+- **Excel服务**: Excel文件导入导出、数据映射、样式配置
+
+### 🌐 WebSocket支持
+- **实时通信**: 内置WebSocket支持
+- **连接管理**: 自动连接池管理
+- **消息广播**: 支持群组消息广播
+
+## 📦 快速开始
 
 ### 安装
 
 ```bash
+go mod init your-project
 go get github.com/guyigood/gyweb
 ```
 
-### 示例代码
+### 依赖管理
+
+如果使用Excel服务，需要安装额外依赖：
+
+```bash
+go get github.com/xuri/excelize/v2
+```
+
+### 基础使用
 
 ```go
 package main
 
 import (
-    "net/http"
-    "github.com/guyigood/gyweb"
+    "github.com/guyigood/gyweb/core/engine"
+    "github.com/guyigood/gyweb/core/gyarn"
+    "github.com/guyigood/gyweb/core/middleware"
 )
 
 func main() {
-    // 创建引擎实例
-    r := gyweb.New()
+    r := engine.New()
     
     // 使用中间件
-    r.Use(gyweb.Logger())
-    r.Use(gyweb.Recovery())
+    r.Use(middleware.Logger())
+    r.Use(middleware.Recovery())
+    r.Use(middleware.CORS())
     
-    // 注册路由
-    r.GET("/", func(c *gyweb.Context) {
-        c.JSON(http.StatusOK, gyweb.H{
-            "message": "Welcome to GyWeb!",
+    // 基础路由
+    r.GET("/", func(c *gyarn.Context) {
+        c.JSON(200, gyarn.H{
+            "message": "Hello GyWeb!",
         })
     })
-    
-    // 路由组
-    api := r.Group("/api")
-    {
-        api.GET("/users", func(c *gyweb.Context) {
-            c.JSON(http.StatusOK, gyweb.H{
-                "users": []string{"Alice", "Bob"},
-            })
-        })
-    }
     
     // 启动服务器
     r.Run(":8080")
 }
 ```
 
-## 核心功能
+## 🔌 第三方服务集成
 
-### 路由系统
-- 支持静态路由和动态路由
-- 路由分组
-- 路由参数解析
-- 支持所有 HTTP 方法
+### 微信公众号
 
-### 中间件
-- 日志中间件
-- 恢复中间件
-- CORS 中间件
-- 自定义中间件支持
+```go
+import "github.com/guyigood/gyweb/core/services/wechat"
 
-### 上下文
-- 请求参数解析
-- JSON/HTML/Text 响应
-- 文件上传
-- Cookie 处理
+config := &wechat.WechatConfig{
+    AppID:     "your_app_id",
+    AppSecret: "your_app_secret",
+    Token:     "your_token",
+}
 
-### 模板渲染
-- 支持 HTML 模板
-- 模板继承
-- 模板变量渲染
+wechatClient := wechat.NewWechat(config)
 
-## 文档
+// 获取用户信息
+userInfo, err := wechatClient.GetUserInfo("openid")
 
-- [API 文档](docs/api.md)
-- [中间件文档](docs/middleware.md)
-- [最佳实践](docs/best-practices.md)
-- [示例代码](examples/)
+// 发送模板消息
+msg := &wechat.TemplateMessage{
+    ToUser:     "openid",
+    TemplateID: "template_id",
+    Data:       templateData,
+}
+wechatClient.SendTemplateMessage(msg)
+```
 
-## 性能
+### Excel操作
 
-GyWeb 框架经过精心优化，具有出色的性能表现：
+```go
+import "github.com/guyigood/gyweb/core/services/excel"
 
-- 路由匹配：使用 Radix 树实现高效路由匹配
-- 内存管理：使用对象池减少内存分配
-- 并发处理：优化的并发安全设计
+// 创建Excel服务
+excelService := excel.NewExcelService()
+defer excelService.Close()
 
-## 贡献指南
+// 导入数据
+var users []User
+result, err := excelService.ImportData(importOptions, &users)
 
-我们欢迎任何形式的贡献，包括但不限于：
+// 导出数据
+err = excelService.ExportData(users, exportOptions)
+fileData, err := excelService.GetBytes()
+```
 
-- 提交问题和建议
-- 提交 Pull Request
-- 改进文档
-- 分享使用经验
+### 支付集成
 
-请查看 [贡献指南](CONTRIBUTING.md) 了解详情。
+```go
+import "github.com/guyigood/gyweb/core/services/payment"
 
-## 许可证
+// 微信支付
+wechatPay := payment.NewWechatPay(wechatPayConfig)
+resp, err := wechatPay.UnifiedOrder(orderReq)
 
-本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
+// 支付宝
+alipay, err := payment.NewAlipay(alipayConfig)
+payURL, err := alipay.TradePagePay(pagePayReq)
+```
 
-## 作者
+## 📁 项目结构
 
-- 辜翌 (guyigood@163.com)
+```
+your-project/
+├── main.go                 # 应用入口
+├── core/                   # 框架核心
+│   ├── engine/            # 引擎
+│   ├── gyarn/             # 上下文
+│   ├── middleware/        # 中间件
+│   └── services/          # 第三方服务
+│       ├── payment/       # 支付服务
+│       ├── wechat/        # 微信公众号
+│       ├── miniprogram/   # 微信小程序
+│       ├── dingtalk/      # 钉钉集成
+│       └── excel/         # Excel服务
+├── examples/              # 示例代码
+├── docs/                  # 文档
+└── README.md
+```
 
-## 致谢
+## 🎯 中间件
 
-感谢所有为这个项目做出贡献的开发者！
+### 内置中间件
 
-## 相关项目
+```go
+// 日志中间件
+r.Use(middleware.Logger())
 
-- [Gin](https://github.com/gin-gonic/gin) - 参考了部分设计理念
-- [Echo](https://github.com/labstack/echo) - 参考了部分设计理念 
+// 错误恢复
+r.Use(middleware.Recovery())
+
+// 跨域处理
+r.Use(middleware.CORS())
+
+// JWT认证
+r.Use(middleware.JWT("your-secret-key"))
+
+// 限流
+r.Use(middleware.RateLimit(100)) // 每分钟100次请求
+```
+
+### 自定义中间件
+
+```go
+func CustomMiddleware() gyarn.HandlerFunc {
+    return func(c *gyarn.Context) {
+        // 前置处理
+        start := time.Now()
+        
+        c.Next()
+        
+        // 后置处理
+        duration := time.Since(start)
+        log.Printf("Request took %v", duration)
+    }
+}
+
+r.Use(CustomMiddleware())
+```
+
+## 🗄️ 数据库操作
+
+```go
+import "github.com/guyigood/gyweb/core/database"
+
+// 初始化数据库
+db, err := database.NewMySQLDB(config)
+
+// GORM集成
+type User struct {
+    ID   uint   `gorm:"primaryKey"`
+    Name string
+}
+
+// 自动迁移
+db.AutoMigrate(&User{})
+
+// CRUD操作
+var user User
+db.First(&user, 1)
+db.Create(&User{Name: "John"})
+```
+
+## 📊 示例项目
+
+### 第三方服务集成示例
+
+```bash
+# 运行支付和小程序示例
+go run examples/third_party_services_example.go
+
+# 运行微信公众号和Excel示例  
+go run examples/additional_services_example.go
+```
+
+### API端点
+
+#### 微信公众号
+- `GET /api/wechat/verify` - 验证微信服务器
+- `GET /api/wechat/user/:openid` - 获取用户信息
+- `POST /api/wechat/message/template` - 发送模板消息
+- `POST /api/wechat/qrcode` - 生成二维码
+- `POST /api/wechat/menu` - 创建菜单
+
+#### Excel操作
+- `POST /api/excel/import` - 导入Excel数据
+- `GET /api/excel/export` - 导出Excel数据
+- `POST /api/excel/template` - 生成Excel模板
+
+#### 支付服务
+- `POST /api/pay/wechat/create` - 创建微信支付订单
+- `POST /api/pay/alipay/create` - 创建支付宝订单
+- `POST /api/pay/*/notify` - 支付回调处理
+
+## 📚 文档
+
+- [快速开始指南](docs/getting_started.md)
+- [第三方服务集成](docs/third_party_services.md)
+- [附加服务集成](docs/additional_services.md)
+- [中间件开发](docs/middleware.md)
+- [数据库操作](docs/database.md)
+
+## 🤝 贡献
+
+欢迎提交问题和拉取请求。对于重大更改，请先开issue讨论您希望进行的更改。
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 🌟 特别鸣谢
+
+感谢所有为这个项目做出贡献的开发者们！
+
+---
+
+## 🔗 相关链接
+
+- [GitHub仓库](https://github.com/guyigood/gyweb)
+- [问题反馈](https://github.com/guyigood/gyweb/issues)
+- [讨论社区](https://github.com/guyigood/gyweb/discussions)
+
+让我们一起构建更好的Go Web应用！ 🚀 
