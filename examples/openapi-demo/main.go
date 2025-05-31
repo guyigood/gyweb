@@ -14,11 +14,16 @@ type User struct {
 	Name string `json:"name" description:"用户名" example:"张三"`
 }
 
+// HealthResponse 健康检查响应
+type HealthResponse struct {
+	Status string `json:"status" description:"服务状态" example:"ok"`
+}
+
 // getHealth 健康检查
 // @Summary 健康检查
 // @Description 检查服务状态
 // @Tags 系统
-// @Success 200 {object} map[string]string "正常"
+// @Success 200 {object} HealthResponse "正常"
 // @Router /health [get]
 func getHealth(c *gyarn.Context) {
 	c.JSON(200, map[string]string{"status": "ok"})
