@@ -1,6 +1,9 @@
 package openapi
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/guyigood/gyweb/core/engine"
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/middleware"
@@ -39,8 +42,28 @@ type EngineExtension struct {
 func NewEngineExtension(e *engine.Engine, config ...OpenAPIConfig) *EngineExtension {
 	cfg := DefaultConfig()
 	if len(config) > 0 {
-		cfg = config[0]
+		// 合并配置而不是完全替换
+		userConfig := config[0]
+		if userConfig.Title != "" {
+			cfg.Title = userConfig.Title
+		}
+		if userConfig.Description != "" {
+			cfg.Description = userConfig.Description
+		}
+		if userConfig.Version != "" {
+			cfg.Version = userConfig.Version
+		}
+		if userConfig.DocsPath != "" {
+			cfg.DocsPath = userConfig.DocsPath
+		}
+		if userConfig.JSONPath != "" {
+			cfg.JSONPath = userConfig.JSONPath
+		}
+		// 保持默认的Enabled=true，除非用户显式传入了完整的禁用配置
+		// 这里简化逻辑：只要用户设置了基本信息，就认为想要启用OpenAPI
 	}
+
+	fmt.Printf("[DEBUG OpenAPI] 配置: Enabled=%v, DocsPath=%s\n", cfg.Enabled, cfg.DocsPath)
 
 	openapi := New().
 		SetInfo(Info{
@@ -61,6 +84,8 @@ func NewEngineExtension(e *engine.Engine, config ...OpenAPIConfig) *EngineExtens
 	// 注册文档路由
 	if cfg.Enabled {
 		ext.registerRoutes()
+	} else {
+		fmt.Printf("[DEBUG OpenAPI] OpenAPI已禁用，跳过路由注册\n")
 	}
 
 	return ext
@@ -68,21 +93,30 @@ func NewEngineExtension(e *engine.Engine, config ...OpenAPIConfig) *EngineExtens
 
 // registerRoutes 注册文档路由
 func (ext *EngineExtension) registerRoutes() {
+	fmt.Printf("[DEBUG OpenAPI] 开始注册文档路由\n")
+	fmt.Printf("[DEBUG OpenAPI] DocsPath: %s\n", ext.config.DocsPath)
+	fmt.Printf("[DEBUG OpenAPI] JSONPath: %s\n", ext.config.JSONPath)
+
 	// 注册OpenAPI JSON端点
 	ext.engine.GET(ext.config.JSONPath, func(c *gyarn.Context) {
 		c.Header("Content-Type", "application/json")
 		ext.openapi.buildPaths() // 确保路径已构建
 		jsonData, err := ext.openapi.ToJSON()
 		if err != nil {
-			c.JSON(500, map[string]string{"error": "生成OpenAPI文档失败"})
+			c.String(http.StatusInternalServerError, "生成OpenAPI文档失败: %v", err)
 			return
 		}
-		c.Data(200, "application/json", jsonData)
+		c.Data(http.StatusOK, "application/json", jsonData)
 	})
 
-	// 注册Swagger UI路由
-	ext.engine.GET(ext.config.DocsPath, ext.openapi.ServeSwaggerUI())
-	ext.engine.GET(ext.config.DocsPath+"/*filepath", ext.openapi.ServeSwaggerUI())
+	// 注册Swagger UI主页面
+	ext.engine.GET(ext.config.DocsPath, func(c *gyarn.Context) {
+		ext.openapi.buildPaths() // 确保路径已构建
+		html := ext.openapi.generateSwaggerHTML()
+		c.HTML(http.StatusOK, html)
+	})
+
+	fmt.Printf("[DEBUG OpenAPI] 文档路由注册完成\n")
 }
 
 // GetOpenAPI 获取OpenAPI实例

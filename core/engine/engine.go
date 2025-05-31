@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"html/template"
 	"log"
 	"math/big"
@@ -81,6 +82,7 @@ func (group *RouterGroup) Use(middlewares ...middleware.HandlerFunc) {
 // addRoute 添加路由
 func (group *RouterGroup) addRoute(method string, comp string, handler middleware.HandlerFunc) {
 	pattern := group.prefix + comp
+	fmt.Printf("[DEBUG] 注册路由: %s %s\n", method, pattern)
 	group.engine.router.AddRoute(method, pattern, handler)
 }
 
@@ -116,6 +118,8 @@ func (engine *Engine) LoadHTMLGlob(pattern string) {
 
 // ServeHTTP 实现 http.Handler 接口
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	fmt.Printf("[DEBUG] 收到请求: %s %s\n", req.Method, req.URL.Path)
+	
 	var middlewares []middleware.HandlerFunc
 	for _, group := range engine.groups {
 		if strings.HasPrefix(req.URL.Path, group.prefix) {
@@ -125,13 +129,17 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	c := gyarn.NewContext(w, req)
 	c.Handlers = middlewares
-	engine.router.GetRoute(req.Method, req.URL.Path)
 
 	if node, params := engine.router.GetRoute(req.Method, req.URL.Path); node != nil {
+		fmt.Printf("[DEBUG] 找到路由节点: %s, Pattern: %s\n", req.URL.Path, node.Pattern)
 		c.Params = params
 		key := req.Method + "-" + node.Pattern
-		c.Handlers = append(c.Handlers, engine.router.GetHandlers(key)...)
+		fmt.Printf("[DEBUG] 查找处理器 key: %s\n", key)
+		handlers := engine.router.GetHandlers(key)
+		fmt.Printf("[DEBUG] 找到 %d 个处理器\n", len(handlers))
+		c.Handlers = append(c.Handlers, handlers...)
 	} else {
+		fmt.Printf("[DEBUG] 未找到路由: %s %s\n", req.Method, req.URL.Path)
 		c.Handlers = append(c.Handlers, func(c *gyarn.Context) {
 			c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
 		})

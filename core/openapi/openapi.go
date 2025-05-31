@@ -488,8 +488,12 @@ func (o *OpenAPI) ToJSON() ([]byte, error) {
 // ServeSwaggerUI 提供Swagger UI服务
 func (o *OpenAPI) ServeSwaggerUI() middleware.HandlerFunc {
 	return func(c *gyarn.Context) {
-		if c.Request.URL.Path == "/swagger/openapi.json" {
+		path := c.Request.URL.Path
+
+		// 处理OpenAPI JSON请求
+		if strings.HasSuffix(path, "/openapi.json") {
 			c.Header("Content-Type", "application/json")
+			o.buildPaths() // 关键：确保路径已构建
 			jsonData, err := o.ToJSON()
 			if err != nil {
 				c.String(http.StatusInternalServerError, "生成OpenAPI文档失败: %v", err)
@@ -500,6 +504,7 @@ func (o *OpenAPI) ServeSwaggerUI() middleware.HandlerFunc {
 		}
 
 		// 提供Swagger UI HTML
+		o.buildPaths() // 关键：确保路径已构建
 		html := o.generateSwaggerHTML()
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.String(http.StatusOK, html)

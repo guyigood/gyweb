@@ -120,7 +120,9 @@ func (n *node) insert(pattern string, parts []string, height int) {
 
 // search 搜索节点
 func (n *node) search(parts []string, height int) *node {
+	// 如果已经到达路径末尾或遇到通配符
 	if len(parts) == height || strings.HasPrefix(n.part, "*") {
+		// 检查当前节点是否有Pattern（即是否是一个完整的路由）
 		if n.Pattern == "" {
 			return nil
 		}

@@ -14,7 +14,7 @@ func main() {
 	r := engine.New()
 	middleware.SetDebug(true)
 
-	// 只使用基础中间件，不使用认证中间件
+	// 只使用基础中间件，先不使用认证中间件
 	r.Use(middleware.Logger())
 	r.Use(middleware.Recovery())
 	r.Use(middleware.CORS())
@@ -38,7 +38,7 @@ func main() {
 	// 路由组
 	api := r.Group("/api")
 	{
-		// 用户相关路由（公开访问）
+		// 用户相关路由
 		users := api.Group("/users")
 		{
 			users.GET("", func(c *gyarn.Context) {
@@ -63,17 +63,8 @@ func main() {
 			})
 		}
 
-		// 需要认证的管理路由
+		// 管理相关路由（暂时不需要认证）
 		admin := api.Group("/admin")
-		// 只在这个路由组上使用认证中间件
-		authMiddleware := middleware.NewAuthManager().
-			UseCustom(func(c *gyarn.Context) bool {
-				// 简单的认证逻辑：检查是否有Authorization头部
-				token := c.Request.Header.Get("Authorization")
-				return token != ""
-			}).
-			Build()
-		admin.Use(authMiddleware)
 		{
 			admin.GET("/dashboard", func(c *gyarn.Context) {
 				c.JSON(http.StatusOK, gyarn.H{

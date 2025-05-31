@@ -318,14 +318,19 @@ func CreateAuthMiddleware(config *AuthConfig) gyarn.HandlerFunc {
 			return
 		}
 
+		// 如果没有设置认证函数，直接通过
+		if config.AuthFunc == nil {
+			debugAuth(c, "未设置认证函数，直接通过")
+			c.Next()
+			return
+		}
+
 		// 执行认证
-		if config.AuthFunc != nil {
-			success := config.AuthFunc(c)
-			debugAuthFunc(c, success)
-			if success {
-				c.Next()
-				return
-			}
+		success := config.AuthFunc(c)
+		debugAuthFunc(c, success)
+		if success {
+			c.Next()
+			return
 		}
 
 		// 认证失败
