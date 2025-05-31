@@ -49,7 +49,10 @@ func (p *AnnotationParser) ParseFile(filename string) error {
 		return err
 	}
 
-	// 遍历所有函数
+	// 先扫描所有结构体类型
+	p.scanStructTypes(src)
+
+	// 然后遍历所有函数
 	for _, decl := range src.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			p.parseFunction(fn)
@@ -57,6 +60,135 @@ func (p *AnnotationParser) ParseFile(filename string) error {
 	}
 
 	return nil
+}
+
+// scanStructTypes 扫描文件中的所有结构体类型
+func (p *AnnotationParser) scanStructTypes(file *ast.File) {
+	for _, decl := range file.Decls {
+		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+			for _, spec := range genDecl.Specs {
+				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+						// 找到结构体定义，生成Schema并注册
+						schema := p.generateSchemaFromStruct(typeSpec.Name.Name, structType)
+						p.openapi.AddSchema(typeSpec.Name.Name, schema)
+					}
+				}
+			}
+		}
+	}
+}
+
+// generateSchemaFromStruct 从AST结构体生成Schema
+func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast.StructType) *Schema {
+	schema := &Schema{
+		Type:       "object",
+		Properties: make(map[string]*Schema),
+		Required:   []string{},
+	}
+
+	for _, field := range structType.Fields.List {
+		if len(field.Names) == 0 {
+			continue // 跳过嵌入字段
+		}
+
+		fieldName := field.Names[0].Name
+		if !field.Names[0].IsExported() {
+			continue // 跳过未导出字段
+		}
+
+		// 解析字段标签
+		var jsonName string
+		var description string
+		var example interface{}
+
+		if field.Tag != nil {
+			tagValue := field.Tag.Value
+			if tagValue != "" {
+				// 移除反引号
+				tagValue = strings.Trim(tagValue, "`")
+
+				// 解析json标签
+				if jsonMatch := regexp.MustCompile(`json:"([^"]+)"`).FindStringSubmatch(tagValue); len(jsonMatch) > 1 {
+					jsonName = strings.Split(jsonMatch[1], ",")[0] // 取逗号前的部分
+				}
+
+				// 解析description标签
+				if descMatch := regexp.MustCompile(`description:"([^"]+)"`).FindStringSubmatch(tagValue); len(descMatch) > 1 {
+					description = descMatch[1]
+				}
+
+				// 解析example标签
+				if exampleMatch := regexp.MustCompile(`example:"([^"]+)"`).FindStringSubmatch(tagValue); len(exampleMatch) > 1 {
+					example = exampleMatch[1]
+				}
+			}
+		}
+
+		if jsonName == "" {
+			jsonName = fieldName
+		}
+
+		// 跳过被忽略的字段
+		if jsonName == "-" {
+			continue
+		}
+
+		// 生成字段Schema
+		fieldSchema := p.generateSchemaFromType(field.Type)
+		if description != "" {
+			fieldSchema.Description = description
+		}
+		if example != nil {
+			fieldSchema.Example = example
+		}
+
+		schema.Properties[jsonName] = fieldSchema
+	}
+
+	return schema
+}
+
+// generateSchemaFromType 从AST类型生成Schema
+func (p *AnnotationParser) generateSchemaFromType(expr ast.Expr) *Schema {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		// 基本类型
+		switch t.Name {
+		case "string":
+			return &Schema{Type: "string"}
+		case "int", "int8", "int16", "int32", "int64":
+			return &Schema{Type: "integer"}
+		case "uint", "uint8", "uint16", "uint32", "uint64":
+			return &Schema{Type: "integer"}
+		case "float32", "float64":
+			return &Schema{Type: "number"}
+		case "bool":
+			return &Schema{Type: "boolean"}
+		default:
+			// 其他结构体类型
+			return &Schema{Ref: fmt.Sprintf("#/components/schemas/%s", t.Name)}
+		}
+	case *ast.ArrayType:
+		// 数组类型
+		itemSchema := p.generateSchemaFromType(t.Elt)
+		return &Schema{
+			Type:  "array",
+			Items: itemSchema,
+		}
+	case *ast.StarExpr:
+		// 指针类型，递归处理
+		return p.generateSchemaFromType(t.X)
+	case *ast.MapType:
+		// Map类型
+		return &Schema{
+			Type:                 "object",
+			AdditionalProperties: p.generateSchemaFromType(t.Value),
+		}
+	default:
+		// 未知类型，返回object
+		return &Schema{Type: "object"}
+	}
 }
 
 // parseFunction 解析函数注释
