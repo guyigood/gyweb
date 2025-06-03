@@ -44,11 +44,19 @@ func main() {
 
 // SM2 加解密演示
 func sm2Demo(service *gm.GMService) {
-	originalText := "这是一段需要用SM2加密的敏感信息"
+	originalText := "123456"
 	fmt.Printf("原文: %s\n", originalText)
 
+	public_key := "04298364ec840088475eae92a591e01284d1abefcda348b47eb324bb521bb03b0b2a5bc393f6b71dabb8f15c99a0050818b56b23f31743b93df9cf8948f15ddb54"
+	// 将公钥字符串转换为SM2Point
+	pubkey, err := service.UnmarshalHex(public_key)
+	if err != nil {
+		log.Printf("解析公钥失败: %v", err)
+		return
+	}
+
 	// 加密
-	encryptResp, err := service.SM2Encrypt([]byte(originalText))
+	encryptResp, err := service.SM2Encrypt([]byte(originalText), pubkey)
 	if err != nil {
 		log.Printf("SM2加密失败: %v", err)
 		return

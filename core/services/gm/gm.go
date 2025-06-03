@@ -377,6 +377,37 @@ func (g *GMService) GetSM2PublicKey() string {
 	return g.encodePublicKey(g.sm2KeyPair.PublicKey)
 }
 
+// UnmarshalHex 解析十六进制公钥字符串为 SM2Point
+func (g *GMService) UnmarshalHex(hexPubKey string) (*SM2Point, error) {
+	// 移除可能的 "04" 前缀（表示未压缩格式）
+	if len(hexPubKey) > 2 && hexPubKey[:2] == "04" {
+		hexPubKey = hexPubKey[2:]
+	}
+
+	if len(hexPubKey) != 128 { // 64 bytes * 2 = 128 hex chars
+		return nil, fmt.Errorf("公钥长度不正确，期望128个十六进制字符，实际%d个", len(hexPubKey))
+	}
+
+	// 解析 X 坐标（前64个字符）
+	xHex := hexPubKey[:64]
+	xBytes, err := hex.DecodeString(xHex)
+	if err != nil {
+		return nil, fmt.Errorf("解析X坐标失败: %v", err)
+	}
+
+	// 解析 Y 坐标（后64个字符）
+	yHex := hexPubKey[64:]
+	yBytes, err := hex.DecodeString(yHex)
+	if err != nil {
+		return nil, fmt.Errorf("解析Y坐标失败: %v", err)
+	}
+
+	return &SM2Point{
+		X: new(big.Int).SetBytes(xBytes),
+		Y: new(big.Int).SetBytes(yBytes),
+	}, nil
+}
+
 // === 批量操作方法 ===
 
 // BatchEncrypt 批量加密
