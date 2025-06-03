@@ -408,6 +408,27 @@ func (g *GMService) UnmarshalHex(hexPubKey string) (*SM2Point, error) {
 	}, nil
 }
 
+// SetPrivateKeyFromHex 从十六进制字符串设置私钥
+func (g *GMService) SetPrivateKeyFromHex(hexPrivKey string) error {
+	privKeyBytes, err := hex.DecodeString(hexPrivKey)
+	if err != nil {
+		return fmt.Errorf("解析私钥失败: %v", err)
+	}
+
+	privKey := new(big.Int).SetBytes(privKeyBytes)
+
+	// 计算对应的公钥
+	pubKey := sm2ScalarMult(privKey, &SM2Point{sm2Gx, sm2Gy})
+
+	// 更新密钥对
+	g.sm2KeyPair = &SM2KeyPair{
+		PrivateKey: privKey,
+		PublicKey:  pubKey,
+	}
+
+	return nil
+}
+
 // === 批量操作方法 ===
 
 // BatchEncrypt 批量加密

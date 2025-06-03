@@ -61,30 +61,59 @@ func NewSM2KeyPair() (*SM2KeyPair, error) {
 
 // SM2Encrypt SM2加密
 func SM2Encrypt(pubKey *SM2Point, plaintext []byte) ([]byte, error) {
-	// 简化实现，实际应该使用完整的SM2加密标准
+	return SM2EncryptWithMode(pubKey, plaintext, 1) // 默认使用C1C3C2模式
+}
+
+// SM2EncryptWithMode SM2加密（指定密文组织模式）
+// mode: 0 = C1C2C3, 1 = C1C3C2
+func SM2EncryptWithMode(pubKey *SM2Point, plaintext []byte, mode int) ([]byte, error) {
 	for {
 		k, err := rand.Int(rand.Reader, sm2N)
 		if err != nil {
 			return nil, err
 		}
 		if k.Sign() > 0 {
+			// C1 = k * G
 			c1 := sm2ScalarMult(k, &SM2Point{sm2Gx, sm2Gy})
+
+			// kPb = k * Pb
 			kPb := sm2ScalarMult(k, pubKey)
 
 			// 使用SM3进行KDF
 			t := sm3KDF(append(intToBytes(kPb.X), intToBytes(kPb.Y)...), len(plaintext))
 
-			// XOR加密
+			// 检查KDF结果是否全零
+			allZero := true
+			for _, b := range t {
+				if b != 0 {
+					allZero = false
+					break
+				}
+			}
+			if allZero {
+				continue // 重新生成k
+			}
+
+			// C2 = M ⊕ t
 			c2 := make([]byte, len(plaintext))
 			for i := 0; i < len(plaintext); i++ {
 				c2[i] = plaintext[i] ^ t[i]
 			}
 
-			// 生成MAC
+			// C3 = Hash(x2 || M || y2)
 			c3 := SM3Hash(append(append(intToBytes(kPb.X), plaintext...), intToBytes(kPb.Y)...))
 
 			// 组合密文
-			result := append(append(append(intToBytes(c1.X), intToBytes(c1.Y)...), c2...), c3...)
+			c1x := intToBytes(c1.X)
+			c1y := intToBytes(c1.Y)
+
+			var result []byte
+			if mode == 1 { // C1C3C2
+				result = append(append(append(c1x, c1y...), c3...), c2...)
+			} else { // C1C2C3
+				result = append(append(append(c1x, c1y...), c2...), c3...)
+			}
+
 			return result, nil
 		}
 	}
@@ -92,30 +121,43 @@ func SM2Encrypt(pubKey *SM2Point, plaintext []byte) ([]byte, error) {
 
 // SM2Decrypt SM2解密
 func SM2Decrypt(privKey *big.Int, ciphertext []byte) ([]byte, error) {
+	return SM2DecryptWithMode(privKey, ciphertext, 1) // 默认使用C1C3C2模式
+}
+
+// SM2DecryptWithMode SM2解密（指定密文组织模式）
+// mode: 0 = C1C2C3, 1 = C1C3C2
+func SM2DecryptWithMode(privKey *big.Int, ciphertext []byte, mode int) ([]byte, error) {
 	if len(ciphertext) < 96 {
 		return nil, errors.New("密文长度不足")
 	}
 
-	// 解析密文
+	// 解析C1
 	c1x := new(big.Int).SetBytes(ciphertext[0:32])
 	c1y := new(big.Int).SetBytes(ciphertext[32:64])
 	c1 := &SM2Point{c1x, c1y}
 
-	c2Len := len(ciphertext) - 96
-	c2 := ciphertext[64 : 64+c2Len]
-	c3 := ciphertext[64+c2Len:]
+	var c2, c3 []byte
 
-	// 计算共享密钥
+	if mode == 1 { // C1C3C2格式
+		c3 = ciphertext[64:96] // C3是32字节的哈希
+		c2 = ciphertext[96:]   // C2是剩余部分
+	} else { // C1C2C3格式
+		c2Len := len(ciphertext) - 96
+		c2 = ciphertext[64 : 64+c2Len]
+		c3 = ciphertext[64+c2Len:]
+	}
+
+	// 计算共享点
 	shared := sm2ScalarMult(privKey, c1)
-	t := sm3KDF(append(intToBytes(shared.X), intToBytes(shared.Y)...), c2Len)
+	t := sm3KDF(append(intToBytes(shared.X), intToBytes(shared.Y)...), len(c2))
 
 	// 解密
-	plaintext := make([]byte, c2Len)
-	for i := 0; i < c2Len; i++ {
+	plaintext := make([]byte, len(c2))
+	for i := 0; i < len(c2); i++ {
 		plaintext[i] = c2[i] ^ t[i]
 	}
 
-	// 验证MAC
+	// 验证C3
 	expectedC3 := SM3Hash(append(append(intToBytes(shared.X), plaintext...), intToBytes(shared.Y)...))
 	if subtle.ConstantTimeCompare(c3, expectedC3) != 1 {
 		return nil, errors.New("MAC验证失败")
