@@ -1,216 +1,133 @@
-# 国密加密服务模块
-
-本模块提供了中国国密算法的Go语言实现，包括SM2、SM3、SM4三种主要算法。
-
-## 功能特性
-
-### SM2 椭圆曲线加密算法
-- 密钥对生成
-- 公钥加密/私钥解密
-- 私钥签名/公钥验签
-
-### SM3 密码杂凑算法
-- 字符串哈希
-- 字节数组哈希
-
-### SM4 对称加密算法
-- ECB/CBC加密模式
-- PKCS7填充
-- 密钥和IV生成
-
-## 使用方法
-
-### 基本使用
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/guyigood/gyweb/core/services/smcrypto"
-)
-
-func main() {
-    // 创建服务实例
-    service := smcrypto.NewSmCryptoService()
-    
-    // SM2示例
-    keyPair, _ := service.GenerateSM2KeyPair()
-    ciphertext, _ := service.SM2Encrypt("Hello World", keyPair.PublicKey)
-    plaintext, _ := service.SM2Decrypt(ciphertext, keyPair.PrivateKey)
-    
-    // SM3示例
-    hash := service.SM3Hash("Hello World")
-    
-    // SM4示例
-    key, _ := service.GenerateSM4Key()
-    options := &smcrypto.SM4Options{
-        Mode:    "ECB",
-        Padding: "PKCS7",
-    }
-    encrypted, _ := service.SM4Encrypt("Hello World", key, options)
-    decrypted, _ := service.SM4Decrypt(encrypted, key, options)
-}
+SM Crypto Go 实现说明文档 
+ 
+概述 
+ 
+本包提供了国密算法(SM2, SM3)的Go语言实现，完全兼容 JavaScript库的功能。
+ 
+功能特性 
+ 
+- SM2加密/解密 - 与sm-crypto库行为完全一致 
+  - 支持两种密文模式：
+    - `C1C2C3` (默认模式)
+    - `C1C3C2` 
+- SM3哈希计算 
+- 纯Go实现，除`github.com/tjfoc/gmsm/sm3`外无其他依赖 
+ 
+安装使用 
+ 
+```go 
+go get github.com/your-repo/smcrypto 
 ```
-
-### API 文档
-
-#### SM2 相关方法
-
-##### GenerateSM2KeyPair() (*SM2KeyPair, error)
-生成SM2密钥对
-
-**返回值:**
-- `SM2KeyPair`: 包含PrivateKey和PublicKey的结构体
-- `error`: 错误信息
-
-##### SM2Encrypt(plaintext, publicKeyHex string) (string, error)
-SM2公钥加密
-
-**参数:**
-- `plaintext`: 明文字符串
-- `publicKeyHex`: 公钥（十六进制字符串）
-
-**返回值:**
-- `string`: 密文（十六进制字符串）
-- `error`: 错误信息
-
-##### SM2Decrypt(ciphertextHex, privateKeyHex string) (string, error)
-SM2私钥解密
-
-**参数:**
-- `ciphertextHex`: 密文（十六进制字符串）
-- `privateKeyHex`: 私钥（十六进制字符串）
-
-**返回值:**
-- `string`: 明文字符串
-- `error`: 错误信息
-
-##### SM2Sign(message, privateKeyHex string) (string, error)
-SM2数字签名
-
-**参数:**
-- `message`: 待签名消息
-- `privateKeyHex`: 私钥（十六进制字符串）
-
-**返回值:**
-- `string`: 签名（十六进制字符串）
-- `error`: 错误信息
-
-##### SM2Verify(message, signatureHex, publicKeyHex string) (bool, error)
-SM2签名验证
-
-**参数:**
-- `message`: 原始消息
-- `signatureHex`: 签名（十六进制字符串）
-- `publicKeyHex`: 公钥（十六进制字符串）
-
-**返回值:**
-- `bool`: 验证结果
-- `error`: 错误信息
-
-#### SM3 相关方法
-
-##### SM3Hash(data string) string
-计算字符串的SM3哈希值
-
-**参数:**
-- `data`: 输入字符串
-
-**返回值:**
-- `string`: 哈希值（十六进制字符串）
-
-##### SM3HashBytes(data []byte) string
-计算字节数组的SM3哈希值
-
-**参数:**
-- `data`: 输入字节数组
-
-**返回值:**
-- `string`: 哈希值（十六进制字符串）
-
-#### SM4 相关方法
-
-##### SM4Encrypt(plaintext, keyHex string, options *SM4Options) (string, error)
-SM4对称加密
-
-**参数:**
-- `plaintext`: 明文字符串
-- `keyHex`: 密钥（十六进制字符串，32个字符）
-- `options`: 加密选项
-
-**返回值:**
-- `string`: 密文（十六进制字符串）
-- `error`: 错误信息
-
-##### SM4Decrypt(ciphertextHex, keyHex string, options *SM4Options) (string, error)
-SM4对称解密
-
-**参数:**
-- `ciphertextHex`: 密文（十六进制字符串）
-- `keyHex`: 密钥（十六进制字符串，32个字符）
-- `options`: 解密选项
-
-**返回值:**
-- `string`: 明文字符串
-- `error`: 错误信息
-
-##### GenerateSM4Key() (string, error)
-生成SM4密钥
-
-**返回值:**
-- `string`: 密钥（十六进制字符串，32个字符）
-- `error`: 错误信息
-
-##### GenerateIV() (string, error)
-生成初始向量
-
-**返回值:**
-- `string`: IV（十六进制字符串，32个字符）
-- `error`: 错误信息
-
-### 数据结构
-
-#### SM2KeyPair
-```go
-type SM2KeyPair struct {
-    PrivateKey string `json:"private_key"` // 私钥（十六进制字符串）
-    PublicKey  string `json:"public_key"`  // 公钥（十六进制字符串）
-}
+ 
+核心API 
+ 
+SM2加密 
+ 
+```go 
+func (c *SmCryptoService) SM2Encrypt(plaintext, publicKeyHex string, cipherMode int) (string, error)
 ```
-
-#### SM4Options
-```go
-type SM4Options struct {
-    Mode    string `json:"mode"`    // 加密模式：ECB、CBC
-    Padding string `json:"padding"` // 填充模式：PKCS7、ZERO
-    IV      string `json:"iv"`      // 初始向量（CBC模式需要）
-}
+ 
+参数说明:
+- `plaintext`: 待加密的明文字符串 
+- `publicKeyHex`: 十六进制格式的公钥 
+- `cipherMode`: 加密模式，0表示C1C2C3，1表示C1C3C2 
+ 
+返回值:
+- 加密后的十六进制字符串 
+- 错误信息(如有)
+ 
+SM2解密 
+ 
+```go 
+func (c *SmCryptoService) SM2Decrypt(encryptDataHex, privateKeyHex string, cipherMode int) (string, error)
 ```
-
-## 运行测试
-
-```bash
-go test -v ./core/services/smcrypto/
+ 
+参数说明:
+- `encryptDataHex`: 十六进制格式的密文 
+- `privateKeyHex`: 十六进制格式的私钥 
+- `cipherMode`: 解密模式，需与加密时一致 
+ 
+返回值:
+- 解密后的明文字符串 
+- 错误信息(如有)
+ 
+SM3哈希 
+ 
+```go 
+func (c *SmCryptoService) GetSM3HashString(decrypted string) string 
 ```
-
-## 注意事项
-
-1. 所有密钥和加密结果都使用十六进制字符串表示
-2. SM4密钥长度固定为16字节（32个十六进制字符）
-3. CBC模式需要提供16字节的初始向量IV
-4. 本模块基于 `github.com/ZZMarquis/gm` 库实现
-5. 符合中国国密标准：GM/T 0003-2012 (SM2)、GM/T 0004-2012 (SM3)、GM/T 0002-2012 (SM4)
-
-## 示例程序
-
-运行示例：
-```go
-package main
-
-import "github.com/guyigood/gyweb/core/services/smcrypto"
-
-func main() {
-    smcrypto.Example()
+ 
+参数说明:
+- `decrypted`: 待计算哈希的字符串 
+ 
+返回值:
+- 计算得到的SM3哈希值(十六进制字符串)
+ 
+使用示例 
+ 
+初始化服务 
+ 
+```go 
+smCrypto := NewSmCryptoService()
+```
+ 
+加密示例 
+ 
+```go 
+// 公钥 
+publicKey := "04298364ec840088475eae92a591e01284d1abefcda348b47eb324bb521bb03b0b2a5bc393f6b71dabb8f15c99a0050818b56b23f31743b93df9cf8948f15ddb54"
+ 
+// 加密"123456"，使用C1C3C2模式 
+ciphertext, err := smCrypto.SM2Encrypt("123456", publicKey, 1)
+if err != nil {
+    fmt.Println("加密失败:", err)
+    return 
 }
-``` 
+fmt.Println("加密结果:", ciphertext)
+```
+ 
+解密示例 
+ 
+```go 
+// 私钥 
+privateKey := "3037723d47292171677ec8bd7dc9af696c7472bc5f251b2cec07e65fdef22e25"
+ 
+// 解密，使用C1C3C2模式 
+plaintext, err := smCrypto.SM2Decrypt(ciphertext, privateKey, 1)
+if err != nil {
+    fmt.Println("解密失败:", err)
+    return 
+}
+fmt.Println("解密结果:", plaintext)
+```
+ 
+SM3哈希示例 
+ 
+```go 
+hash := smCrypto.GetSM3HashString("123456")
+fmt.Println("SM3哈希:", hash)
+```
+ 
+注意事项 
+ 
+1. 密钥格式：公钥和私钥都必须是十六进制字符串格式 
+2. 模式匹配：解密时必须使用与加密时相同的模式(C1C2C3或C1C3C2)
+3. 性能考虑：本实现包含手动实现的椭圆曲线运算，生产环境建议使用硬件加速 
+ 
+兼容性说明 
+ 
+本实现已通过以下测试用例验证：
+- 加密"123456"生成的密文与sm-crypto结果完全一致 
+- 解密sm-crypto生成的密文能正确还原原文 
+- SM3哈希值与sm-crypto计算结果一致 
+ 
+贡献指南 
+ 
+欢迎提交Issue和Pull Request。提交前请确保：
+1. 代码通过`go test`测试 
+2. 新增功能包含测试用例 
+3. 代码风格符合Go语言惯例 
+ 
+许可证 
+ 
+Apache License 2.0
