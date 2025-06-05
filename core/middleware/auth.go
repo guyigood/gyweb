@@ -49,7 +49,7 @@ type JWTConfig struct {
 
 // JWTClaims JWT声明结构
 type JWTClaims struct {
-	UserID   int64  `json:"user_id"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
@@ -199,7 +199,7 @@ func (m *AuthManager) UseSession(config *SessionConfig) *AuthManager {
 }
 
 // GenerateJWT 生成JWT token
-func GenerateJWT(config *JWTConfig, userID int64, username string, role string) (string, error) {
+func GenerateJWT(config *JWTConfig, userID string, username string, role string) (string, error) {
 	claims := JWTClaims{
 		UserID:   userID,
 		Username: username,
