@@ -1,6 +1,7 @@
 package excel
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -251,7 +252,11 @@ func (e *ExcelService) ExportData(data interface{}, options *ExportOptions) erro
 	}
 
 	// 创建工作表
-	if e.file.GetSheetIndex(sheetName) == -1 {
+	sheetIndex, err := e.file.GetSheetIndex(sheetName)
+	if err != nil {
+		return err
+	}
+	if sheetIndex == -1 {
 		_, err := e.file.NewSheet(sheetName)
 		if err != nil {
 			return err
@@ -295,7 +300,11 @@ func (e *ExcelService) SaveToFile(filename string) error {
 
 // GetBytes 获取文件字节数据
 func (e *ExcelService) GetBytes() ([]byte, error) {
-	return e.file.WriteToBuffer()
+	buffer := bytes.NewBuffer(nil)
+	if err := e.file.Write(buffer); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 // Close 关闭文件
@@ -639,7 +648,10 @@ func (e *ExcelService) GetSheetNames() []string {
 
 // SetActiveSheet 设置活动工作表
 func (e *ExcelService) SetActiveSheet(name string) error {
-	index := e.file.GetSheetIndex(name)
+	index, err := e.file.GetSheetIndex(name)
+	if err != nil {
+		return err
+	}
 	if index == -1 {
 		return fmt.Errorf("工作表 %s 不存在", name)
 	}
