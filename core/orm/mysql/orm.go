@@ -65,6 +65,18 @@ func (db *DB) Table(name string) *DB {
 	return db
 }
 
+func (db *DB) SetMaxIdleConns(n int) {
+	db.db.SetMaxIdleConns(n)
+}
+
+func (db *DB) SetMaxOpenConns(n int) {
+	db.db.SetMaxOpenConns(n)
+}
+
+func (db *DB) SetConnMaxLifetime(d time.Duration) {
+	db.db.SetConnMaxLifetime(d)
+}
+
 // Model 使用模型
 func (db *DB) Model(model interface{}) *DB {
 	db.resetQuery()
