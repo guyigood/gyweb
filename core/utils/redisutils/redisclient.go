@@ -50,6 +50,11 @@ func (c *RedisClient) Close() error {
 	return c.Client.Close()
 }
 
+// 设置redis key的过期时间
+func (c *RedisClient) Expire(key string, expiration time.Duration) error {
+	return c.Client.Expire(context.Background(), key, expiration).Err()
+}
+
 //redis 队列操作
 
 // 向redis队列中添加一个元素
