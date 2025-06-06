@@ -3,6 +3,8 @@ package common
 import (
 	"encoding/json"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 // 读入文件，将文件中的json转为结构体
@@ -23,4 +25,8 @@ func WriteJsonFile(filename string, v interface{}) error {
 	}
 	defer jsonFile.Close()
 	return json.NewEncoder(jsonFile).Encode(v)
+}
+
+func GetUUID() string {
+	return uuid.New().String()
 }
