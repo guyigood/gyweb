@@ -24,6 +24,10 @@ func NewRedisClient(addr string, password string, db int) *RedisClient {
 	return &RedisClient{Client: client, Context: ctx}
 }
 
+func (c *RedisClient) Ping() error {
+	return c.Client.Ping(context.Background()).Err()
+}
+
 // 判断redis key是否存在
 func (c *RedisClient) Exists(key string) (bool, error) {
 	n, err := c.Client.Exists(context.Background(), key).Result()
