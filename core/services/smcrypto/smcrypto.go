@@ -30,6 +30,14 @@ func (c *SmCryptoService) GetSM3HashString(decrypted string) string {
 // SM2Decrypt 精确匹配 sm-crypto 的解密实现
 // cipherMode: 1 - C1C3C2, 0 - C1C2C3
 func (c *SmCryptoService) SM2Decrypt(encryptDataHex, privateKeyHex string, cipherMode int) (string, error) {
+	//加入长度检查
+	if len(encryptDataHex) < 128 {
+		return "", fmt.Errorf("加密数据长度不足")
+	}
+	if len(privateKeyHex) < 64 {
+		return "", fmt.Errorf("私钥长度不足")
+	}
+
 	// 解析私钥
 	privateKey := new(big.Int)
 	privateKey.SetString(privateKeyHex, 16)
