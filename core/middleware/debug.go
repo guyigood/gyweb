@@ -101,8 +101,8 @@ func DebugSQL(sql string, args ...interface{}) {
 	}
 }
 
-func DebugVar(v interface{}) {
+func DebugVar(varname string, v interface{}) {
 	if IsDebugEnabled() {
-		debugLogger.Output(2, fmt.Sprintf("[VAR] %v", v))
+		debugLogger.Output(2, fmt.Sprintf("[VAR] %s: %v", varname, v))
 	}
 }
