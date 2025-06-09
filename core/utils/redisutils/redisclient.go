@@ -12,6 +12,7 @@ import (
 type RedisClient struct {
 	Client  *redis.Client
 	Context context.Context
+	IsDebug bool
 }
 
 func NewRedisClient(addr string, password string, db int) (*RedisClient, error) {
@@ -28,18 +29,23 @@ func NewRedisClient(addr string, password string, db int) (*RedisClient, error) 
 	if err := redisClient.Ping(); err != nil {
 		return nil, fmt.Errorf("Redis连接失败: %v", err)
 	}
-
-	fmt.Printf("[DEBUG] Redis连接成功: %s, DB: %d\n", addr, db)
+	if redisClient.IsDebug {
+		fmt.Printf("[DEBUG] Redis连接成功: %s, DB: %d\n", addr, db)
+	}
 	return redisClient, nil
 }
 
 func (c *RedisClient) Ping() error {
 	result := c.Client.Ping(c.Context)
 	if err := result.Err(); err != nil {
-		fmt.Printf("[ERROR] Redis Ping失败: %v\n", err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Ping失败: %v\n", err)
+		}
 		return err
 	}
-	fmt.Printf("[DEBUG] Redis Ping成功: %s\n", result.Val())
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis Ping成功: %s\n", result.Val())
+	}
 	return nil
 }
 
@@ -47,10 +53,14 @@ func (c *RedisClient) Ping() error {
 func (c *RedisClient) Exists(key string) (bool, error) {
 	n, err := c.Client.Exists(c.Context, key).Result()
 	if err != nil {
-		fmt.Printf("[ERROR] Redis Exists失败 key=%s: %v\n", key, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Exists失败 key=%s: %v\n", key, err)
+		}
 		return false, err
 	}
-	fmt.Printf("[DEBUG] Redis Exists key=%s, result=%t\n", key, n > 0)
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis Exists key=%s, result=%t\n", key, n > 0)
+	}
 	return n > 0, err
 }
 
@@ -58,10 +68,14 @@ func (c *RedisClient) Exists(key string) (bool, error) {
 func (c *RedisClient) Set(key string, value interface{}, expiration time.Duration) error {
 	err := c.Client.Set(c.Context, key, value, expiration).Err()
 	if err != nil {
-		fmt.Printf("[ERROR] Redis Set失败 key=%s, value=%v: %v\n", key, value, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Set失败 key=%s, value=%v: %v\n", key, value, err)
+		}
 		return err
 	}
-	fmt.Printf("[DEBUG] Redis Set成功 key=%s, value=%v, expiration=%v\n", key, value, expiration)
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis Set成功 key=%s, value=%v, expiration=%v\n", key, value, expiration)
+	}
 	return nil
 }
 
@@ -70,13 +84,19 @@ func (c *RedisClient) Get(key string) (string, error) {
 	result, err := c.Client.Get(c.Context, key).Result()
 	if err != nil {
 		if err == redis.Nil {
-			fmt.Printf("[DEBUG] Redis Get key=%s 不存在\n", key)
+			if c.IsDebug {
+				fmt.Printf("[DEBUG] Redis Get key=%s 不存在\n", key)
+			}
 			return "", fmt.Errorf("key %s 不存在", key)
 		}
-		fmt.Printf("[ERROR] Redis Get失败 key=%s: %v\n", key, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Get失败 key=%s: %v\n", key, err)
+		}
 		return "", err
 	}
-	fmt.Printf("[DEBUG] Redis Get成功 key=%s, value=%s\n", key, result)
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis Get成功 key=%s, value=%s\n", key, result)
+	}
 	return result, nil
 }
 
@@ -84,10 +104,14 @@ func (c *RedisClient) Get(key string) (string, error) {
 func (c *RedisClient) Del(key string) error {
 	err := c.Client.Del(c.Context, key).Err()
 	if err != nil {
-		fmt.Printf("[ERROR] Redis Del失败 key=%s: %v\n", key, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Del失败 key=%s: %v\n", key, err)
+		}
 		return err
 	}
-	fmt.Printf("[DEBUG] Redis Del成功 key=%s\n", key)
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis Del成功 key=%s\n", key)
+	}
 	return nil
 }
 
@@ -95,10 +119,14 @@ func (c *RedisClient) Del(key string) error {
 func (c *RedisClient) Close() error {
 	err := c.Client.Close()
 	if err != nil {
-		fmt.Printf("[ERROR] Redis Close失败: %v\n", err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Close失败: %v\n", err)
+		}
 		return err
 	}
-	fmt.Printf("[DEBUG] Redis 连接已关闭\n")
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis 连接已关闭\n")
+	}
 	return nil
 }
 
@@ -106,10 +134,14 @@ func (c *RedisClient) Close() error {
 func (c *RedisClient) Expire(key string, expiration time.Duration) error {
 	err := c.Client.Expire(c.Context, key, expiration).Err()
 	if err != nil {
-		fmt.Printf("[ERROR] Redis Expire失败 key=%s: %v\n", key, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis Expire失败 key=%s: %v\n", key, err)
+		}
 		return err
 	}
-	fmt.Printf("[DEBUG] Redis Expire成功 key=%s, expiration=%v\n", key, expiration)
+	if c.IsDebug {
+		fmt.Printf("[DEBUG] Redis Expire成功 key=%s, expiration=%v\n", key, expiration)
+	}
 	return nil
 }
 
@@ -119,7 +151,9 @@ func (c *RedisClient) Expire(key string, expiration time.Duration) error {
 func (c *RedisClient) LPush(key string, values ...interface{}) error {
 	err := c.Client.LPush(c.Context, key, values...).Err()
 	if err != nil {
-		fmt.Printf("[ERROR] Redis LPush失败 key=%s: %v\n", key, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis LPush失败 key=%s: %v\n", key, err)
+		}
 	}
 	return err
 }
@@ -128,7 +162,9 @@ func (c *RedisClient) LPush(key string, values ...interface{}) error {
 func (c *RedisClient) RPop(key string) (string, error) {
 	result, err := c.Client.RPop(c.Context, key).Result()
 	if err != nil && err != redis.Nil {
-		fmt.Printf("[ERROR] Redis RPop失败 key=%s: %v\n", key, err)
+		if c.IsDebug {
+			fmt.Printf("[ERROR] Redis RPop失败 key=%s: %v\n", key, err)
+		}
 	}
 	return result, err
 }
