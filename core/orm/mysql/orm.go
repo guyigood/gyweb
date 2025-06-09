@@ -301,6 +301,28 @@ func (db *DB) All() ([]MapModel, error) {
 	return results, nil
 }
 
+// 获取查询记录数
+func (db *DB) Count() (int64, error) {
+	sql, args := db.buildQuery()
+	middleware.DebugSQL(sql, args...)
+	rows, err := db.db.Query(sql, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return 0, fmt.Errorf("no rows found")
+	}
+
+	var count int64
+	if err := rows.Scan(&count); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 // Insert 插入数据（支持 map 和结构体）
 func (db *DB) Insert(data interface{}) (int64, error) {
 	var fields []string
