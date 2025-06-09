@@ -100,3 +100,9 @@ func DebugSQL(sql string, args ...interface{}) {
 		))
 	}
 }
+
+func DebugVar(v interface{}) {
+	if IsDebugEnabled() {
+		debugLogger.Output(2, fmt.Sprintf("[VAR] %v", v))
+	}
+}
