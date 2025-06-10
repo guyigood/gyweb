@@ -303,6 +303,7 @@ func (db *DB) All() ([]MapModel, error) {
 
 // 获取查询记录数
 func (db *DB) Count() (int64, error) {
+	db.fields = []string{"COUNT(*)"}
 	sql, args := db.buildQuery()
 	middleware.DebugSQL(sql, args...)
 	rows, err := db.db.Query(sql, args...)
