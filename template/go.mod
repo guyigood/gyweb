@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/go-sql-driver/mysql v1.9.2
-	github.com/guyigood/gyweb v0.0.0-20250610081037-8b330be3c9e4
+	github.com/guyigood/gyweb v0.0.0-20250610081913-1bcb9d17595f
 )
 
 require (
