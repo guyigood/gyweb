@@ -3,24 +3,76 @@ package dbcommon
 import (
 	"fmt"
 	"strings"
-	"{firstweb}/model"
-	"{firstweb}/public"
+	"{project_name}/model"
+	"{project_name}/public"
 
 	"github.com/guyigood/gyweb/core/gyarn"
 )
 
+// PageResponse 分页查询响应
+type PageResponse struct {
+	Code int      `json:"code" example:"200"` // 响应码
+	Msg  string   `json:"msg" example:"操作成功"` // 响应消息
+	Data PageData `json:"data"`               // 分页数据
+}
+
+// PageData 分页数据结构
+type PageData struct {
+	Data       []map[string]interface{} `json:"data"`        // 数据列表
+	Total      int64                    `json:"total"`       // 总记录数
+	Page       int                      `json:"page"`        // 当前页码
+	PageSize   int                      `json:"page_size"`   // 每页大小
+	TotalPages int64                    `json:"total_pages"` // 总页数
+	HasNext    bool                     `json:"has_next"`    // 是否有下一页
+	HasPrev    bool                     `json:"has_prev"`    // 是否有上一页
+}
+
+// ListResponse 列表查询响应
+type ListResponse struct {
+	Code int                      `json:"code" example:"200"` // 响应码
+	Msg  string                   `json:"msg" example:"操作成功"` // 响应消息
+	Data []map[string]interface{} `json:"data"`               // 数据列表
+}
+
+// SaveResponse 保存操作响应
+type SaveResponse struct {
+	Code int                    `json:"code" example:"200"` // 响应码
+	Msg  string                 `json:"msg" example:"操作成功"` // 响应消息
+	Data map[string]interface{} `json:"data"`               // 保存后的数据
+}
+
+// DetailResponse 详情查询响应
+type DetailResponse struct {
+	Code int                    `json:"code" example:"200"` // 响应码
+	Msg  string                 `json:"msg" example:"操作成功"` // 响应消息
+	Data map[string]interface{} `json:"data"`               // 记录详情
+}
+
+// DeleteResponse 删除操作响应
+type DeleteResponse struct {
+	Code int    `json:"code" example:"200"`  // 响应码
+	Msg  string `json:"msg" example:"操作成功"`  // 响应消息
+	Data string `json:"data" example:"删除成功"` // 响应数据
+}
+
+// ErrorResponse 错误响应
+type ErrorResponse struct {
+	Code int    `json:"code" example:"101"`  // 错误码
+	Msg  string `json:"msg" example:"错误信息"`  // 错误消息
+	Data string `json:"data" example:"null"` // 错误数据
+}
+
 // Page 分页查询数据
 // @Summary 分页查询数据
-// @Description 支持复杂条件查询的通用分页接口，支持AND/OR逻辑组合
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param request body model.Page true "分页查询参数"
-// @Success 200 {object} gyarn.H{data=[]map[string]interface{},total=int64,page=int,page_size=int,total_pages=int64,has_next=bool,has_prev=bool} "查询结果"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "参数错误"
-// @Failure 102 {object} gyarn.H{code=int,message=string} "表名不能为空"
-// @Failure 103 {object} gyarn.H{code=int,message=string} "获取总数失败"
-// @Failure 104 {object} gyarn.H{code=int,message=string} "查询失败"
+// @RequestBody {object} model.Page
+// @Success 200 {object} PageResponse "查询结果"
+// @Failure 101 {object} ErrorResponse "参数错误"
+// @Failure 102 {object} ErrorResponse "表名不能为空"
+// @Failure 103 {object} ErrorResponse "获取总数失败"
+// @Failure 104 {object} ErrorResponse "查询失败"
 // @Router /api/db/page [post]
 func Page(c *gyarn.Context) {
 	var req model.Page
@@ -262,11 +314,11 @@ func buildSimpleConditions(filters map[string]model.PageFilter) ([]string, []int
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param request body model.Page true "查询参数(不使用分页相关字段)"
-// @Success 200 {object} gyarn.H{data=[]map[string]interface{}} "查询结果"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "参数错误"
-// @Failure 102 {object} gyarn.H{code=int,message=string} "表名不能为空"
-// @Failure 104 {object} gyarn.H{code=int,message=string} "查询失败"
+// @RequestBody {object} model.Page
+// @Success 200 {object} ListResponse "查询结果"
+// @Failure 101 {object} ErrorResponse "参数错误"
+// @Failure 102 {object} ErrorResponse "表名不能为空"
+// @Failure 104 {object} ErrorResponse "查询失败"
 // @Router /api/db/list [post]
 func List(c *gyarn.Context) {
 	var req model.Page
@@ -316,17 +368,17 @@ func List(c *gyarn.Context) {
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param request body model.SaveData true "保存数据参数"
-// @Success 200 {object} gyarn.H{data=map[string]interface{}} "保存成功，返回保存后的数据"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "参数错误"
-// @Failure 102 {object} gyarn.H{code=int,message=string} "表名不能为空"
-// @Failure 103 {object} gyarn.H{code=int,message=string} "保存数据不能为空"
-// @Failure 104 {object} gyarn.H{code=int,message=string} "缺少必填字段"
-// @Failure 105 {object} gyarn.H{code=int,message=string} "必填字段不能为空"
-// @Failure 106 {object} gyarn.H{code=int,message=string} "没有需要更新的数据"
-// @Failure 107 {object} gyarn.H{code=int,message=string} "更新失败"
-// @Failure 108 {object} gyarn.H{code=int,message=string} "获取更新后数据失败"
-// @Failure 109 {object} gyarn.H{code=int,message=string} "插入失败"
+// @RequestBody {object} model.SaveData
+// @Success 200 {object} SaveResponse "保存成功，返回保存后的数据"
+// @Failure 101 {object} ErrorResponse "参数错误"
+// @Failure 102 {object} ErrorResponse "表名不能为空"
+// @Failure 103 {object} ErrorResponse "保存数据不能为空"
+// @Failure 104 {object} ErrorResponse "缺少必填字段"
+// @Failure 105 {object} ErrorResponse "必填字段不能为空"
+// @Failure 106 {object} ErrorResponse "没有需要更新的数据"
+// @Failure 107 {object} ErrorResponse "更新失败"
+// @Failure 108 {object} ErrorResponse "获取更新后数据失败"
+// @Failure 109 {object} ErrorResponse "插入失败"
 // @Router /api/db/save [post]
 func Save(c *gyarn.Context) {
 	var req model.SaveData
@@ -456,10 +508,10 @@ func Save(c *gyarn.Context) {
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param table query string true "表名"
-// @Param id query string true "要删除的记录ID"
-// @Success 200 {object} gyarn.H{data=null} "删除成功"
-// @Failure 104 {object} gyarn.H{code=int,message=string} "删除失败"
+// @Param table query string true "表名" example("users")
+// @Param id query string true "要删除的记录ID" example("1")
+// @Success 200 {object} DeleteResponse "删除成功"
+// @Failure 104 {object} ErrorResponse "删除失败"
 // @Router /api/db/delete [post]
 func Delete(c *gyarn.Context) {
 	db := public.Db
@@ -479,10 +531,10 @@ func Delete(c *gyarn.Context) {
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param table query string true "表名"
-// @Param id query string true "记录ID"
-// @Success 200 {object} gyarn.H{data=map[string]interface{}} "查询成功，返回记录详情"
-// @Failure 104 {object} gyarn.H{code=int,message=string} "查询失败"
+// @Param table query string true "表名" example("users")
+// @Param id query string true "记录ID" example("1")
+// @Success 200 {object} DetailResponse "查询成功，返回记录详情"
+// @Failure 104 {object} ErrorResponse "查询失败"
 // @Router /api/db/detail [get]
 func Detail(c *gyarn.Context) {
 	db := public.Db

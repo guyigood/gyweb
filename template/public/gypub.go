@@ -3,7 +3,7 @@ package public
 import (
 	"fmt"
 	"time"
-	"{firstweb}/model"
+	"{project_name}/model"
 
 	"github.com/guyigood/gyweb/core/middleware"
 	orm "github.com/guyigood/gyweb/core/orm/mysql"

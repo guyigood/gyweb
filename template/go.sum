@@ -45,8 +45,10 @@ github.com/gorilla/securecookie v1.1.2 h1:YCIWL56dvtr73r6715mJs5ZvhtnY73hBvEF8kX
 github.com/gorilla/securecookie v1.1.2/go.mod h1:NfCASbcHqRSY+3a8tlWJwsQap2VX5pwzwo4h3eOamfo=
 github.com/gorilla/sessions v1.4.0 h1:kpIYOp/oi6MG/p5PgxApU8srsSw9tuFbt46Lt7auzqQ=
 github.com/gorilla/sessions v1.4.0/go.mod h1:FLWm50oby91+hl7p/wRxDth9bWSuk0qVL2emc7lT5ik=
-github.com/guyigood/gyweb v0.0.0-20250610001927-30ffe13653e5 h1:qyn7+cfQd/+ilz4JpCLV220V6vrArGEZ6ZrjudOhlis=
-github.com/guyigood/gyweb v0.0.0-20250610001927-30ffe13653e5/go.mod h1:OboxVsEG2nDZgVtegvOxQQ9PvpdqVVKR3+ot894i6r0=
+github.com/guyigood/gyweb v0.0.0-20250610081037-8b330be3c9e4 h1:Ofy8qyGI0RRlMIpKUt67wCQ/XX9kb9oP6VpxmczO3Es=
+github.com/guyigood/gyweb v0.0.0-20250610081037-8b330be3c9e4/go.mod h1:OboxVsEG2nDZgVtegvOxQQ9PvpdqVVKR3+ot894i6r0=
+github.com/guyigood/gyweb v0.0.0-20250610081913-1bcb9d17595f h1:+zsrS4Ovi88+rpyrkQKwZUQhMM04+vBGpjRu9LVPgJw=
+github.com/guyigood/gyweb v0.0.0-20250610081913-1bcb9d17595f/go.mod h1:OboxVsEG2nDZgVtegvOxQQ9PvpdqVVKR3+ot894i6r0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=

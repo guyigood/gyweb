@@ -1,0 +1,546 @@
+basePath: /
+definitions:
+  dbcommon.DeleteResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        description: 响应数据
+        example: 删除成功
+        type: string
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  dbcommon.DetailResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        additionalProperties: true
+        description: 记录详情
+        type: object
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  dbcommon.ErrorResponse:
+    properties:
+      code:
+        description: 错误码
+        example: 101
+        type: integer
+      data:
+        description: 错误数据
+        example: "null"
+        type: string
+      msg:
+        description: 错误消息
+        example: 错误信息
+        type: string
+    type: object
+  dbcommon.ListResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        description: 数据列表
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  dbcommon.PageData:
+    properties:
+      data:
+        description: 数据列表
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      has_next:
+        description: 是否有下一页
+        type: boolean
+      has_prev:
+        description: 是否有上一页
+        type: boolean
+      page:
+        description: 当前页码
+        type: integer
+      page_size:
+        description: 每页大小
+        type: integer
+      total:
+        description: 总记录数
+        type: integer
+      total_pages:
+        description: 总页数
+        type: integer
+    type: object
+  dbcommon.PageResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dbcommon.PageData'
+        description: 分页数据
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  dbcommon.SaveResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        additionalProperties: true
+        description: 保存后的数据
+        type: object
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  sysbase.ErrorResponse:
+    properties:
+      code:
+        description: 错误码
+        example: 101
+        type: integer
+      data:
+        description: 错误数据
+        example: "null"
+        type: string
+      msg:
+        description: 错误消息
+        example: 错误信息
+        type: string
+    type: object
+  sysbase.LoginRequest:
+    properties:
+      code:
+        description: 用户名
+        example: admin
+        type: string
+      password:
+        description: 密码(SM2加密)
+        example: "123456"
+        type: string
+    required:
+    - code
+    - password
+    type: object
+  sysbase.LoginResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        description: 返回的token
+        example: token-uuid
+        type: string
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  sysbase.LoginUserDetail:
+    properties:
+      id:
+        description: 用户ID
+        example: 1
+        type: integer
+      memo:
+        description: 权限备注
+        example: 权限备注
+        type: string
+      role_id:
+        description: 角色ID
+        example: 1
+        type: integer
+      role_name:
+        description: 角色名称
+        example: 管理员
+        type: string
+      username:
+        description: 用户名
+        example: admin
+        type: string
+    type: object
+  sysbase.LogoutResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        description: 响应数据
+        example: 退出成功
+        type: string
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  sysbase.MenuResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        description: 菜单树形结构
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+  sysbase.UserInfoResponse:
+    properties:
+      code:
+        description: 响应码
+        example: 200
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/sysbase.LoginUserDetail'
+        description: 用户详细信息
+      msg:
+        description: 响应消息
+        example: 操作成功
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@firstweb.com
+    name: API Support
+  description: FirstWeb项目API接口说明，支持用户认证和数据库通用操作
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: FirstWeb API接口文档
+  version: 1.0.0
+paths:
+  /api/auth/getmenu:
+    get:
+      consumes:
+      - application/json
+      description: 根据用户角色获取相应的权限菜单，支持树形结构
+      parameters:
+      - description: 用户token
+        in: header
+        name: Token
+        required: true
+        type: string
+      - description: 角色ID，为空或0时返回全部菜单
+        in: query
+        name: role
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 用户信息错误
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+        "200":
+          description: 菜单树形结构
+          schema:
+            $ref: '#/definitions/sysbase.MenuResponse'
+      summary: 获取用户权限菜单
+      tags:
+      - 用户认证
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 用户登录接口，使用SM2解密密码并验证用户身份
+      parameters:
+      - description: 登录参数
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/sysbase.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 解密失败或其他错误
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+        "102":
+          description: 无效的请求参数
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+        "103":
+          description: 用户名或密码错误
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+        "200":
+          description: 登录成功，返回token
+          schema:
+            $ref: '#/definitions/sysbase.LoginResponse'
+      summary: 用户登录
+      tags:
+      - 用户认证
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: 用户登出接口，清除用户token
+      parameters:
+      - description: 用户token
+        in: header
+        name: Token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 请先登录
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+        "200":
+          description: 退出成功
+          schema:
+            $ref: '#/definitions/sysbase.LogoutResponse'
+      summary: 用户登出
+      tags:
+      - 用户认证
+  /api/auth/userinfo:
+    get:
+      consumes:
+      - application/json
+      description: 根据token获取当前登录用户的详细信息
+      parameters:
+      - description: 用户token
+        in: header
+        name: Token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 解析用户信息失败
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+        "200":
+          description: 用户信息
+          schema:
+            $ref: '#/definitions/sysbase.UserInfoResponse'
+        "401":
+          description: 未授权，请先登录
+          schema:
+            $ref: '#/definitions/sysbase.ErrorResponse'
+      summary: 获取用户信息
+      tags:
+      - 用户认证
+  /api/db/delete:
+    post:
+      consumes:
+      - application/json
+      description: 根据ID删除指定表中的数据记录
+      parameters:
+      - description: 表名
+        example: '"users"'
+        in: query
+        name: table
+        required: true
+        type: string
+      - description: 要删除的记录ID
+        example: '"1"'
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "104":
+          description: 删除失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/dbcommon.DeleteResponse'
+      summary: 删除数据
+      tags:
+      - 数据库通用操作
+  /api/db/detail:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取指定表中单条记录的详细信息
+      parameters:
+      - description: 表名
+        example: '"users"'
+        in: query
+        name: table
+        required: true
+        type: string
+      - description: 记录ID
+        example: '"1"'
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "104":
+          description: 查询失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "200":
+          description: 查询成功，返回记录详情
+          schema:
+            $ref: '#/definitions/dbcommon.DetailResponse'
+      summary: 获取详情数据
+      tags:
+      - 数据库通用操作
+  /api/db/list:
+    post:
+      consumes:
+      - application/json
+      description: 支持复杂条件查询的通用列表接口，不分页返回所有符合条件的数据
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "102":
+          description: 表名不能为空
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "104":
+          description: 查询失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "200":
+          description: 查询结果
+          schema:
+            $ref: '#/definitions/dbcommon.ListResponse'
+      summary: 列表查询数据
+      tags:
+      - 数据库通用操作
+  /api/db/page:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "102":
+          description: 表名不能为空
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "103":
+          description: 获取总数失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "104":
+          description: 查询失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "200":
+          description: 查询结果
+          schema:
+            $ref: '#/definitions/dbcommon.PageResponse'
+      summary: 分页查询数据
+      tags:
+      - 数据库通用操作
+  /api/db/save:
+    post:
+      consumes:
+      - application/json
+      description: 通用数据保存接口，支持新增和更新操作，自动根据是否有id字段判断操作类型
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "102":
+          description: 表名不能为空
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "103":
+          description: 保存数据不能为空
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "104":
+          description: 缺少必填字段
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "105":
+          description: 必填字段不能为空
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "106":
+          description: 没有需要更新的数据
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "107":
+          description: 更新失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "108":
+          description: 获取更新后数据失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "109":
+          description: 插入失败
+          schema:
+            $ref: '#/definitions/dbcommon.ErrorResponse'
+        "200":
+          description: 保存成功，返回保存后的数据
+          schema:
+            $ref: '#/definitions/dbcommon.SaveResponse'
+      summary: 保存数据
+      tags:
+      - 数据库通用操作
+schemes:
+- http
+securityDefinitions:
+  TokenAuth:
+    description: Token认证
+    in: header
+    name: Token
+    type: apiKey
+swagger: "2.0"

@@ -2,10 +2,10 @@ package sysbase
 
 import (
 	"encoding/json"
-	"{firstweb}/model"
-	"{firstweb}/public"
 	"net/http"
 	"time"
+	"{project_name}/model"
+	"{project_name}/public"
 
 	"github.com/guyigood/gyweb/core/middleware"
 
@@ -43,25 +43,72 @@ func CheckAuth(c *gyarn.Context) bool {
 	return false
 }
 
+// LoginRequest 登录请求参数
+type LoginRequest struct {
+	Code     string `json:"code" example:"admin" binding:"required"`      // 用户名
+	Password string `json:"password" example:"123456" binding:"required"` // 密码(SM2加密)
+}
+
+// LoginResponse 登录响应
+type LoginResponse struct {
+	Code int    `json:"code" example:"200"`        // 响应码
+	Msg  string `json:"msg" example:"操作成功"`        // 响应消息
+	Data string `json:"data" example:"token-uuid"` // 返回的token
+}
+
+// UserInfoResponse 用户信息响应
+type UserInfoResponse struct {
+	Code int             `json:"code" example:"200"` // 响应码
+	Msg  string          `json:"msg" example:"操作成功"` // 响应消息
+	Data LoginUserDetail `json:"data"`               // 用户详细信息
+}
+
+// LoginUserDetail 用户详细信息
+type LoginUserDetail struct {
+	ID       int    `json:"id" example:"1"`           // 用户ID
+	Username string `json:"username" example:"admin"` // 用户名
+	RoleId   int    `json:"role_id" example:"1"`      // 角色ID
+	RoleName string `json:"role_name" example:"管理员"`  // 角色名称
+	Memo     string `json:"memo" example:"权限备注"`      // 权限备注
+}
+
+// MenuResponse 菜单响应
+type MenuResponse struct {
+	Code int                      `json:"code" example:"200"` // 响应码
+	Msg  string                   `json:"msg" example:"操作成功"` // 响应消息
+	Data []map[string]interface{} `json:"data"`               // 菜单树形结构
+}
+
+// LogoutResponse 登出响应
+type LogoutResponse struct {
+	Code int    `json:"code" example:"200"`  // 响应码
+	Msg  string `json:"msg" example:"操作成功"`  // 响应消息
+	Data string `json:"data" example:"退出成功"` // 响应数据
+}
+
+// ErrorResponse 错误响应
+type ErrorResponse struct {
+	Code int    `json:"code" example:"101"`  // 错误码
+	Msg  string `json:"msg" example:"错误信息"`  // 错误消息
+	Data string `json:"data" example:"null"` // 错误数据
+}
+
 // Login 用户登录
 // @Summary 用户登录
 // @Description 用户登录接口，使用SM2解密密码并验证用户身份
 // @Tags 用户认证
 // @Accept json
 // @Produce json
-// @Param request body object{code=string,password=string} true "登录参数"
-// @Success 200 {object} gyarn.H{data=string} "登录成功，返回token"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "解密失败或其他错误"
-// @Failure 102 {object} gyarn.H{code=int,message=string} "无效的请求参数"
-// @Failure 103 {object} gyarn.H{code=int,message=string} "用户名或密码错误"
+// @Param loginRequest body LoginRequest true "登录参数"
+// @Success 200 {object} LoginResponse "登录成功，返回token"
+// @Failure 101 {object} ErrorResponse "解密失败或其他错误"
+// @Failure 102 {object} ErrorResponse "无效的请求参数"
+// @Failure 103 {object} ErrorResponse "用户名或密码错误"
 // @Router /api/auth/login [post]
 func Login(c *gyarn.Context) {
 	db := public.Db
 	user := new(model.LoginUser)
-	var loginForm struct {
-		Username string `json:"code"`
-		Password string `json:"password"`
-	}
+	var loginForm LoginRequest
 	err := c.BindJSON(&loginForm)
 	if err != nil {
 		c.Error(102, "无效的请求参数")
@@ -74,7 +121,7 @@ func Login(c *gyarn.Context) {
 		c.Error(101, err2.Error())
 		return
 	}
-	data, err1 := db.Table("sl_login").Where("status=1 and code=? and pass=?", loginForm.Username, public.Sm3Hash(password)).Get()
+	data, err1 := db.Table("sl_login").Where("status=1 and code=? and pass=?", loginForm.Code, public.Sm3Hash(password)).Get()
 	if err1 != nil {
 		c.Error(101, err1.Error())
 		return
@@ -111,9 +158,9 @@ func Login(c *gyarn.Context) {
 // @Accept json
 // @Produce json
 // @Param Token header string true "用户token"
-// @Success 200 {object} gyarn.H{data=model.LoginUser} "用户信息"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "解析用户信息失败"
-// @Failure 401 {object} gyarn.H{code=int,message=string} "未授权，请先登录"
+// @Success 200 {object} UserInfoResponse "用户信息"
+// @Failure 101 {object} ErrorResponse "解析用户信息失败"
+// @Failure 401 {object} ErrorResponse "未授权，请先登录"
 // @Router /api/auth/userinfo [get]
 func UserInfo(c *gyarn.Context) {
 	uuid := c.GetHeader("Token")
@@ -147,8 +194,8 @@ func UserInfo(c *gyarn.Context) {
 // @Produce json
 // @Param Token header string true "用户token"
 // @Param role query string false "角色ID，为空或0时返回全部菜单"
-// @Success 200 {object} gyarn.H{data=[]map[string]interface{}} "菜单树形结构"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "用户信息错误"
+// @Success 200 {object} MenuResponse "菜单树形结构"
+// @Failure 101 {object} ErrorResponse "用户信息错误"
 // @Router /api/auth/getmenu [get]
 func GetRoleMenu(c *gyarn.Context) {
 	role := c.Query("role")
@@ -187,8 +234,8 @@ func GetRoleMenu(c *gyarn.Context) {
 // @Accept json
 // @Produce json
 // @Param Token header string true "用户token"
-// @Success 200 {object} gyarn.H{data=string} "退出成功"
-// @Failure 101 {object} gyarn.H{code=int,message=string} "请先登录"
+// @Success 200 {object} LogoutResponse "退出成功"
+// @Failure 101 {object} ErrorResponse "请先登录"
 // @Router /api/auth/logout [post]
 func Logout(c *gyarn.Context) {
 	token := c.GetHeader("Token")

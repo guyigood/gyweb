@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"{firstweb}/controller/sysbase"
-	"{firstweb}/lib"
-	"{firstweb}/public"
+	"{project_name}/controller/sysbase"
+	"{project_name}/lib"
+	"{project_name}/public"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/guyigood/gyweb/core/engine"
@@ -18,32 +18,41 @@ import (
 func main() {
 	public.SysInit()
 	r := engine.New()
-	middleware.SetDebug(public.SysConfig.Server.Debug)
 	// 启用OpenAPI - 一行代码！
 	docs := openapi.EnableOpenAPI(r, openapi.OpenAPIConfig{
-		Title:   "API接口说明",
-		Version: "1.0.0",
+		Title:       "FirstWeb API接口文档",
+		Description: "FirstWeb项目API接口说明，支持用户认证和数据库通用操作",
+		Version:     "1.0.0",
 	})
 
 	// 从注解生成文档 - 关键的一行！
+	fmt.Println("开始生成OpenAPI文档...")
 	err := docs.GenerateFromAnnotations("./")
+
+	middleware.SetDebug(public.SysConfig.Server.Debug)
+
 	if err != nil {
-		fmt.Println("OpenApi 引擎生成失败！", err)
+		fmt.Printf("OpenApi 引擎生成失败！错误: %v\n", err)
 		return
 	}
+	docs.GenerateFromAnnotations("./controller/sysbase")
+	docs.GenerateFromAnnotations("./controller/dbcommon")
+
+	fmt.Println("OpenAPI文档生成成功！")
 	// 使用中间件
 	r.Use(middleware.Logger())
 	r.Use(middleware.Recovery())
 	r.Use(middleware.CORS())
 	r.Use(middleware.RateLimit(100))
-	r.Use(lib.LogDb())
 	CustomAuth(r) //设置为自定义鉴权
 	RegRoute(r)
-
+	r.Use(lib.LogDb())
 	// 启动服务器
+	fmt.Println("正在启动服务器，端口：8080")
+	fmt.Println("OpenAPI文档地址：http://localhost:8080/swagger")
 	err = r.Run(":8080")
 	if err != nil {
-		fmt.Println("start error:", err)
+		fmt.Printf("服务器启动失败: %v\n", err)
 	}
 }
 
@@ -54,8 +63,8 @@ func CustomAuth(r *engine.Engine) {
 			c.Error(103, "未授权")
 		}).
 		AddWhitelist(
-			[]string{"/api/auth/login"},      // 白名单路径
-			[]string{"/static/", "/public/"}, // 白名单前缀
+			[]string{"/api/auth/login", "/swagger", "/swagger/", "/swagger/index.html", "/docs", "/docs/"}, // 白名单路径
+			[]string{"/static/", "/public/", "/swagger/"},                                                  // 白名单前缀
 			nil,
 		).
 		Build()

@@ -1,9 +1,10 @@
 package lib
 
 import (
+	"io"
 	"time"
-	"{firstweb}/model"
-	"{firstweb}/public"
+	"{project_name}/model"
+	"{project_name}/public"
 
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/middleware"
@@ -16,21 +17,29 @@ func LogDb() middleware.HandlerFunc {
 		login, ok := c.Get("login")
 		user_id := 0
 		if ok {
-
 			user, u_flag := login.(model.LoginUser)
 			if u_flag {
 				user_id = user.ID
 			}
 		}
-		db.Table("sl_log").Insert(gyarn.H{
+		body_str := ""
+		if c.Request.Body != nil {
+			body := c.Request.Body
+			defer body.Close()
+			body_b, _ := io.ReadAll(body)
+			body_str = string(body_b)
+		}
+
+		_, err := db.Table("sl_log").Insert(map[string]interface{}{
 			"ip":       c.ClientIP(),
 			"url":      c.Request.URL.Path,
 			"add_time": t,
 			"user_id":  user_id,
 			"method":   c.Request.Method,
-			"params":   c.Request.URL.Query(),
-			"body":     c.Request.Body,
+			"params":   c.Request.URL.Query().Encode(),
+			"body":     body_str,
 		})
+		middleware.DebugVar("log", err)
 		c.Next()
 	}
 

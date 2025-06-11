@@ -1,8 +1,8 @@
 package main
 
 import (
-	"{firstweb}/controller/dbcommon"
-	"{firstweb}/controller/sysbase"
+	"{project_name}/controller/dbcommon"
+	"{project_name}/controller/sysbase"
 
 	"github.com/guyigood/gyweb/core/engine"
 )

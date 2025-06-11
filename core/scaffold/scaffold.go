@@ -34,7 +34,7 @@ func (s *Scaffold) CreateProject(projectName string) error {
 		return fmt.Errorf("创建项目目录失败: %v", err)
 	}
 
-	s.AddReplacement("{firstweb}", projectName)
+	s.AddReplacement("{project_name}", projectName)
 
 	fmt.Printf("正在创建项目 '%s'...\n", projectName)
 	if err := s.copyTemplate(s.TemplatePath, projectName); err != nil {

@@ -1,4 +1,4 @@
-module {firstweb}
+module {project_name}
 
 go 1.23
 
@@ -20,4 +20,3 @@ require (
 	github.com/redis/go-redis/v9 v9.0.0 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 )
-
