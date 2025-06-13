@@ -121,7 +121,7 @@ func Login(c *gyarn.Context) {
 		c.Error(101, err2.Error())
 		return
 	}
-	data, err1 := db.Table("sl_login").Where("status=1 and code=? and pass=?", loginForm.Code, public.Sm3Hash(password)).Get()
+	data, err1 := db.Table("login").Where("status=1 and code=? and pass=?", loginForm.Code, public.Sm3Hash(password)).Get()
 	if err1 != nil {
 		c.Error(101, err1.Error())
 		return
@@ -133,7 +133,7 @@ func Login(c *gyarn.Context) {
 	user.ID, _ = datatype.TypetoInt(data["id"])
 	user.Username = datatype.TypetoStr(data["code"])
 	user.RoleId, _ = datatype.TypetoInt(data["role_id"])
-	role, _ := db.Table("sl_role").Where("id=?", data["role_id"]).Get()
+	role, _ := db.Table("role").Where("id=?", data["role_id"]).Get()
 	user.RoleName = datatype.TypetoStr(role["name"])
 	user.Memo = datatype.TypetoStr(role["memo"])
 	user_info, _ := json.Marshal(user)
@@ -212,13 +212,13 @@ func GetRoleMenu(c *gyarn.Context) {
 	db := public.Db
 	convertedData := make([]map[string]interface{}, 0)
 	if role == "0" || role == "" {
-		menu, _ := db.Table("sl_nav").All()
+		menu, _ := db.Table("nav_menu").All()
 		//fmt.Println(menu)
 		for _, m := range menu {
 			convertedData = append(convertedData, m) // 直接赋值，因为 MapModel 底层是 map[string]interface{}
 		}
 	} else {
-		menu, _ := db.Table("sl_nav").Where("id in (" + user.Memo + ")").All()
+		menu, _ := db.Table("nav_menu").Where("id in (" + user.Memo + ")").All()
 		for _, m := range menu {
 			convertedData = append(convertedData, m) // 直接赋值，因为 MapModel 底层是 map[string]interface{}
 		}

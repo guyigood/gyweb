@@ -30,7 +30,7 @@ func LogDb() middleware.HandlerFunc {
 			body_str = string(body_b)
 		}
 
-		_, err := db.Table("sl_log").Insert(map[string]interface{}{
+		_, err := db.Table("operation_log").Insert(map[string]interface{}{
 			"ip":       c.ClientIP(),
 			"url":      c.Request.URL.Path,
 			"add_time": t,
