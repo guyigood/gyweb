@@ -468,3 +468,49 @@ func (db *DB) Transaction(fn func(*DB) error) error {
 func (db *DB) Close() error {
 	return db.db.Close()
 }
+
+// query 查询sql语句
+func (db *DB) Query(sql string, args ...any) ([]MapModel, error) {
+	middleware.DebugSQL(sql, args...)
+	rows, err := db.db.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	var results []MapModel
+	for rows.Next() {
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		result := make(MapModel)
+		for i, col := range columns {
+			val := values[i]
+			if b, ok := val.([]byte); ok {
+				result[col] = string(b)
+			} else {
+				result[col] = val
+			}
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
+// exec 执行sql语句
+func (db *DB) Exec(sql string, args ...any) (sql.Result, error) {
+	return db.db.Exec(sql, args...)
+}
