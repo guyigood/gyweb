@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"{project_name}/controller/sysbase"
 	"{project_name}/lib"
 	"{project_name}/public"
@@ -12,7 +11,6 @@ import (
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/middleware"
 	"github.com/guyigood/gyweb/core/openapi"
-	orm "github.com/guyigood/gyweb/core/orm/mysql"
 )
 
 func main() {
@@ -83,66 +81,5 @@ func JwtAuth(r *engine.Engine) {
 	r.Use(jwtAuth)
 	{
 		r.POST("/api/login", sysbase.Login)
-	}
-}
-func Login(c *gyarn.Context) {
-	var loginForm struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-	if err := c.BindJSON(&loginForm); err != nil {
-		c.BadRequest("无效的请求参数")
-		return
-	}
-
-	// 验证用户名密码（示例）
-	if loginForm.Username == "admin" && loginForm.Password == "123456" {
-		// 生成JWT token
-		role := "admin"
-		token, err := middleware.GenerateJWT(public.GetJwtConfig(), "1", loginForm.Username, role)
-		if err != nil {
-			c.InternalServerError("生成token失败")
-			return
-		}
-
-		c.Success(gyarn.H{
-			"token": token,
-			"user": gyarn.H{
-				"id":       1,
-				"username": loginForm.Username,
-			},
-		})
-		return
-	}
-	c.Unauthorized("用户名或密码错误")
-}
-
-func RegTest(r *engine.Engine) {
-	// 注册路由
-	r.GET("/", func(c *gyarn.Context) {
-		c.JSON(http.StatusOK, gyarn.H{
-			"message": "Welcome to GyWeb!",
-		})
-	})
-
-	// 路由组
-	api := r.Group("/api")
-	{
-		api.GET("/users", func(c *gyarn.Context) {
-			c.JSON(http.StatusOK, gyarn.H{
-				"users": []string{"Alice", "Bob"},
-			})
-		})
-		api.GET("/dbtest", func(c *gyarn.Context) {
-			db, err := orm.NewDB("mysql", "root:gy7210@tcp(localhost:3306)/cpnrc?charset=utf8mb4&parseTime=True&loc=Local")
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			data, _ := db.Table("sl_agv_call").Where("inc_type=?", "in").Limit(10).Offset(20).All()
-
-			c.Success(data)
-		})
 	}
 }

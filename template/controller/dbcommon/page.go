@@ -9,59 +9,6 @@ import (
 	"github.com/guyigood/gyweb/core/gyarn"
 )
 
-// PageResponse 分页查询响应
-type PageResponse struct {
-	Code int      `json:"code" example:"200"` // 响应码
-	Msg  string   `json:"msg" example:"操作成功"` // 响应消息
-	Data PageData `json:"data"`               // 分页数据
-}
-
-// PageData 分页数据结构
-type PageData struct {
-	Data       []map[string]interface{} `json:"data"`        // 数据列表
-	Total      int64                    `json:"total"`       // 总记录数
-	Page       int                      `json:"page"`        // 当前页码
-	PageSize   int                      `json:"page_size"`   // 每页大小
-	TotalPages int64                    `json:"total_pages"` // 总页数
-	HasNext    bool                     `json:"has_next"`    // 是否有下一页
-	HasPrev    bool                     `json:"has_prev"`    // 是否有上一页
-}
-
-// ListResponse 列表查询响应
-type ListResponse struct {
-	Code int                      `json:"code" example:"200"` // 响应码
-	Msg  string                   `json:"msg" example:"操作成功"` // 响应消息
-	Data []map[string]interface{} `json:"data"`               // 数据列表
-}
-
-// SaveResponse 保存操作响应
-type SaveResponse struct {
-	Code int                    `json:"code" example:"200"` // 响应码
-	Msg  string                 `json:"msg" example:"操作成功"` // 响应消息
-	Data map[string]interface{} `json:"data"`               // 保存后的数据
-}
-
-// DetailResponse 详情查询响应
-type DetailResponse struct {
-	Code int                    `json:"code" example:"200"` // 响应码
-	Msg  string                 `json:"msg" example:"操作成功"` // 响应消息
-	Data map[string]interface{} `json:"data"`               // 记录详情
-}
-
-// DeleteResponse 删除操作响应
-type DeleteResponse struct {
-	Code int    `json:"code" example:"200"`  // 响应码
-	Msg  string `json:"msg" example:"操作成功"`  // 响应消息
-	Data string `json:"data" example:"删除成功"` // 响应数据
-}
-
-// ErrorResponse 错误响应
-type ErrorResponse struct {
-	Code int    `json:"code" example:"101"`  // 错误码
-	Msg  string `json:"msg" example:"错误信息"`  // 错误消息
-	Data string `json:"data" example:"null"` // 错误数据
-}
-
 // Page 分页查询数据
 // @Summary 分页查询数据
 // @Tags 数据库通用操作

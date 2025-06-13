@@ -1,10 +1,10 @@
-# {firstweb}
+# {project_name}    
 
 基于 GyWeb 框架创建的Web应用程序
 
 ## 项目简介
 
-{firstweb} 是使用 GyWeb 脚手架工具创建的Go Web应用程序。
+{project_name} 是使用 GyWeb 脚手架工具创建的Go Web应用程序。
 
 ## 快速开始
 
@@ -30,7 +30,7 @@ go run main.go
 ## 项目结构
 
 ```
-{firstweb}/
+{project_name}/
 ├── main.go        # 主程序入口
 ├── go.mod         # Go模块文件  
 ├── README.md      # 项目说明
@@ -66,13 +66,13 @@ api := r.Group("/api/v1")
 构建生产版本：
 
 ```bash
-go build -o {firstweb} main.go
+go build -o {project_name} main.go
 ```
 
 运行：
 
 ```bash
-./{firstweb}
+./{project_name}
 ```
 
 ## 许可证
