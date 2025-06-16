@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -46,9 +45,9 @@ func CORS() HandlerFunc {
 		c.SetHeader("Access-Control-Allow-Credentials", "true")
 
 		if c.Method == "OPTIONS" {
-			fmt.Println("CORS OPTIONS")
+			//fmt.Println("CORS OPTIONS")
 			c.Status(http.StatusOK)
-			c.Abort() // 停止后续中间件的执行
+			//c.Abort() // 停止后续中间件的执行
 			return
 		}
 

@@ -119,7 +119,7 @@ func (engine *Engine) LoadHTMLGlob(pattern string) {
 // ServeHTTP 实现 http.Handler 接口
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Printf("[DEBUG] 收到请求: %s %s\n", req.Method, req.URL.Path)
-	
+
 	var middlewares []middleware.HandlerFunc
 	for _, group := range engine.groups {
 		if strings.HasPrefix(req.URL.Path, group.prefix) {
@@ -139,10 +139,13 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		fmt.Printf("[DEBUG] 找到 %d 个处理器\n", len(handlers))
 		c.Handlers = append(c.Handlers, handlers...)
 	} else {
-		fmt.Printf("[DEBUG] 未找到路由: %s %s\n", req.Method, req.URL.Path)
-		c.Handlers = append(c.Handlers, func(c *gyarn.Context) {
-			c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
-		})
+		if req.Method != "OPTIONS" {
+
+			fmt.Printf("[DEBUG] 未找到路由: %s %s\n", req.Method, req.URL.Path)
+			c.Handlers = append(c.Handlers, func(c *gyarn.Context) {
+				c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
+			})
+		}
 	}
 
 	c.Next()
