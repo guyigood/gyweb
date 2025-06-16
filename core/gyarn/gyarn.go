@@ -30,6 +30,8 @@ type Context struct {
 	aborted    bool
 	// 用于存储请求级别的数据
 	Keys map[string]interface{}
+	// 新增：标记是否已经写入状态码
+	statusWritten bool
 }
 
 // Response 标准响应结构
@@ -42,16 +44,17 @@ type Response struct {
 // NewContext 创建新的上下文
 func NewContext(w http.ResponseWriter, req *http.Request) *Context {
 	return &Context{
-		Writer:     w,
-		Request:    req,
-		Path:       req.URL.Path,
-		Method:     req.Method,
-		Params:     make(map[string]string), // 初始化路由参数map
-		StatusCode: http.StatusOK,           // 设置默认状态码
-		Handlers:   make([]HandlerFunc, 0),  // 初始化处理器切片
-		index:      -1,
-		aborted:    false,
-		Keys:       make(map[string]interface{}), // 初始化Keys map
+		Writer:        w,
+		Request:       req,
+		Path:          req.URL.Path,
+		Method:        req.Method,
+		Params:        make(map[string]string), // 初始化路由参数map
+		StatusCode:    http.StatusOK,           // 设置默认状态码
+		Handlers:      make([]HandlerFunc, 0),  // 初始化处理器切片
+		index:         -1,
+		aborted:       false,
+		Keys:          make(map[string]interface{}), // 初始化Keys map
+		statusWritten: false,                        // 初始化状态码写入标志
 	}
 }
 
@@ -147,7 +150,10 @@ func (c *Context) HTML(code int, html string) {
 // Status 设置状态码
 func (c *Context) Status(code int) {
 	c.StatusCode = code
-	c.Writer.WriteHeader(code)
+	if !c.statusWritten {
+		c.Writer.WriteHeader(code)
+		c.statusWritten = true
+	}
 }
 
 // SetHeader 设置响应头
