@@ -1,130 +1,399 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>CORS测试页面</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS 完整测试</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
-        .success { background-color: #d4edda; border-color: #c3e6cb; }
-        .error { background-color: #f8d7da; border-color: #f5c6cb; }
-        button { margin: 5px; padding: 10px 15px; }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            background: #28a745;
+        }
+        .success:hover {
+            background: #1e7e34;
+        }
+        .error {
+            background: #dc3545;
+        }
+        .error:hover {
+            background: #c82333;
+        }
+        .log {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .log div {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .log .info { color: #90cdf4; }
+        .log .success { color: #68d391; }
+        .log .error { color: #fc8181; }
+        .log .warning { color: #f6e05e; }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 200px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d1edff;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .response-details {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .response-details h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .header-item {
+            background: #e9ecef;
+            padding: 5px 10px;
+            margin: 3px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
-    <h1>CORS和跨域请求测试</h1>
-    
-    <div>
-        <button onclick="testOptionsRequest()">测试OPTIONS预检请求</button>
-        <button onclick="testSimplePost()">测试简单POST请求</button>
-        <button onclick="testComplexPost()">测试复杂POST请求(带自定义头)</button>
-        <button onclick="testLogin()">测试登录接口</button>
-        <button onclick="clearResults()">清除结果</button>
+    <div class="container">
+        <h1>🔄 CORS 完整测试工具</h1>
+        
+        <div class="config">
+            <div>
+                <h3>服务器配置</h3>
+                <label>服务器地址:</label><br>
+                <input type="text" id="serverUrl" value="http://localhost:8080" placeholder="http://localhost:8080">
+                <br>
+                <label>测试路径:</label><br>
+                <select id="testPath">
+                    <option value="/api/test">/api/test</option>
+                    <option value="/debug/request">/debug/request</option>
+                    <option value="/cors/status">/cors/status</option>
+                    <option value="/api/auth/login">/api/auth/login</option>
+                </select>
+            </div>
+            <div>
+                <h3>请求配置</h3>
+                <label>发送认证头:</label><br>
+                <input type="checkbox" id="sendAuth"> 包含 Authorization
+                <br>
+                <label>发送自定义头:</label><br>
+                <input type="checkbox" id="sendCustom"> 包含 X-Custom-Header
+                <br>
+                <label>发送 Token 头:</label><br>
+                <input type="checkbox" id="sendToken"> 包含 Token
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 CORS 测试</h2>
+            
+            <button onclick="testCORS('GET')">测试 GET 请求</button>
+            <button onclick="testCORS('POST')">测试 POST 请求</button>
+            <button onclick="testCORS('PUT')">测试 PUT 请求</button>
+            <button onclick="testCORS('DELETE')">测试 DELETE 请求</button>
+            <button onclick="testPreflight()">手动预检 OPTIONS</button>
+            <button onclick="clearLog()">清空日志</button>
+            
+            <div id="status" class="status" style="display: none;"></div>
+            
+            <h3>📝 详细日志</h3>
+            <div id="log" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 网络检查</h2>
+            <button onclick="checkServerConnection()">检查服务器连接</button>
+            <button onclick="inspectCORSHeaders()">检查 CORS 头部</button>
+            <button onclick="testSimpleRequest()">测试简单请求</button>
+            <button onclick="testComplexRequest()">测试复杂请求</button>
+        </div>
     </div>
-    
-    <div id="results"></div>
 
     <script>
-        const API_BASE = 'http://localhost:8080';
-        
-        function log(message, isError = false) {
+        let logContainer = document.getElementById('log');
+        let statusContainer = document.getElementById('status');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
             const div = document.createElement('div');
-            div.className = 'result ' + (isError ? 'error' : 'success');
-            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + '</strong>: ' + message;
-            document.getElementById('results').appendChild(div);
-            console.log(message);
+            div.className = type;
+            div.innerHTML = `[${timestamp}] ${message}`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
-        
-        function clearResults() {
-            document.getElementById('results').innerHTML = '';
+
+        function setStatus(message, type) {
+            statusContainer.textContent = message;
+            statusContainer.className = `status ${type}`;
+            statusContainer.style.display = 'block';
         }
-        
-        async function testOptionsRequest() {
-            log('🔍 手动测试OPTIONS请求...');
+
+        function clearLog() {
+            logContainer.innerHTML = '';
+            statusContainer.style.display = 'none';
+        }
+
+        function getServerUrl() {
+            return document.getElementById('serverUrl').value.trim();
+        }
+
+        function getTestPath() {
+            return document.getElementById('testPath').value;
+        }
+
+        function getHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (document.getElementById('sendAuth').checked) {
+                headers['Authorization'] = 'Bearer fake-token-for-testing';
+            }
+
+            if (document.getElementById('sendCustom').checked) {
+                headers['X-Custom-Header'] = 'custom-value';
+            }
+
+            if (document.getElementById('sendToken').checked) {
+                headers['Token'] = 'test-token-123';
+            }
+
+            return headers;
+        }
+
+        async function testCORS(method) {
+            const url = getServerUrl() + getTestPath();
+            const headers = getHeaders();
+            
+            log(`🚀 开始测试 ${method} 请求: ${url}`, 'info');
+            log(`📋 请求头: ${JSON.stringify(headers, null, 2)}`, 'info');
+
             try {
-                const response = await fetch(API_BASE + '/api/auth/login', {
+                const options = {
+                    method: method,
+                    headers: headers,
+                    credentials: 'include'
+                };
+
+                if (method === 'POST' || method === 'PUT') {
+                    options.body = JSON.stringify({
+                        test: true,
+                        message: `这是一个 ${method} 请求测试`,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
+                log(`⏱️  发送请求...`, 'info');
+                const response = await fetch(url, options);
+                
+                log(`✅ 响应状态: ${response.status} ${response.statusText}`, 'success');
+                
+                // 打印响应头
+                log(`📄 响应头:`, 'info');
+                for (let [key, value] of response.headers.entries()) {
+                    log(`   ${key}: ${value}`, 'info');
+                }
+
+                const data = await response.text();
+                log(`📦 响应体: ${data}`, 'success');
+
+                if (response.ok) {
+                    setStatus(`${method} 请求成功! 状态码: ${response.status}`, 'success');
+                } else {
+                    setStatus(`${method} 请求失败! 状态码: ${response.status}`, 'error');
+                }
+
+            } catch (error) {
+                log(`❌ 请求失败: ${error.message}`, 'error');
+                setStatus(`${method} 请求失败: ${error.message}`, 'error');
+                
+                if (error.message.includes('CORS')) {
+                    log(`🔍 CORS 错误详情: 这通常意味着预检请求失败或服务器没有正确设置 CORS 头部`, 'warning');
+                }
+            }
+        }
+
+        async function testPreflight() {
+            const url = getServerUrl() + getTestPath();
+            
+            log(`🔍 手动发送 OPTIONS 预检请求: ${url}`, 'info');
+
+            try {
+                const response = await fetch(url, {
                     method: 'OPTIONS',
                     headers: {
-                        'Origin': window.location.origin,
                         'Access-Control-Request-Method': 'POST',
-                        'Access-Control-Request-Headers': 'Content-Type,Authorization'
+                        'Access-Control-Request-Headers': 'Content-Type, Authorization, X-Custom-Header'
                     }
                 });
-                
-                log(`✅ OPTIONS请求成功: ${response.status}`);
-                log(`📋 响应头: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+
+                log(`✅ OPTIONS 响应状态: ${response.status}`, 'success');
+                log(`📄 OPTIONS 响应头:`, 'info');
+                for (let [key, value] of response.headers.entries()) {
+                    log(`   ${key}: ${value}`, 'info');
+                }
+
+                const responseText = await response.text();
+                log(`📦 OPTIONS 响应体: "${responseText}"`, 'info');
+
+                setStatus(`OPTIONS 预检请求完成，状态码: ${response.status}`, 'success');
+
             } catch (error) {
-                log(`❌ OPTIONS请求失败: ${error.message}`, true);
+                log(`❌ OPTIONS 请求失败: ${error.message}`, 'error');
+                setStatus(`OPTIONS 预检请求失败: ${error.message}`, 'error');
             }
         }
-        
-        async function testSimplePost() {
-            log('📤 测试简单POST请求...');
+
+        async function checkServerConnection() {
+            const url = getServerUrl() + '/cors/status';
+            log(`🔗 检查服务器连接: ${url}`, 'info');
+
             try {
-                const response = await fetch(API_BASE + '/api/test', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: 'Hello from CORS test'
-                    })
-                });
-                
-                const data = await response.text();
-                log(`✅ 简单POST请求成功: ${response.status}, 响应: ${data}`);
+                const response = await fetch(url, { method: 'GET' });
+                log(`✅ 服务器连接正常，状态码: ${response.status}`, 'success');
+                setStatus('服务器连接正常', 'success');
             } catch (error) {
-                log(`❌ 简单POST请求失败: ${error.message}`, true);
+                log(`❌ 服务器连接失败: ${error.message}`, 'error');
+                setStatus('服务器连接失败', 'error');
             }
         }
-        
-        async function testComplexPost() {
-            log('🔧 测试复杂POST请求(会触发预检)...');
+
+        async function inspectCORSHeaders() {
+            const url = getServerUrl() + '/cors/status';
+            log(`🔍 检查 CORS 头部配置...`, 'info');
+
             try {
-                const response = await fetch(API_BASE + '/api/test', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer test-token',
-                        'X-Custom-Header': 'test-value'
-                    },
-                    body: JSON.stringify({
-                        message: 'Complex request with custom headers'
-                    })
+                const response = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'include'
                 });
-                
-                const data = await response.text();
-                log(`✅ 复杂POST请求成功: ${response.status}, 响应: ${data}`);
+
+                log(`📋 CORS 相关响应头:`, 'info');
+                const corsHeaders = [
+                    'Access-Control-Allow-Origin',
+                    'Access-Control-Allow-Methods', 
+                    'Access-Control-Allow-Headers',
+                    'Access-Control-Allow-Credentials',
+                    'Access-Control-Max-Age',
+                    'Access-Control-Expose-Headers'
+                ];
+
+                corsHeaders.forEach(header => {
+                    const value = response.headers.get(header);
+                    if (value) {
+                        log(`   ✓ ${header}: ${value}`, 'success');
+                    } else {
+                        log(`   ✗ ${header}: 未设置`, 'warning');
+                    }
+                });
+
             } catch (error) {
-                log(`❌ 复杂POST请求失败: ${error.message}`, true);
+                log(`❌ 检查失败: ${error.message}`, 'error');
             }
         }
-        
-        async function testLogin() {
-            log('🔐 测试登录接口...');
-            try {
-                const response = await fetch(API_BASE + '/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: 'test',
-                        password: 'test'
-                    })
-                });
-                
-                const data = await response.text();
-                log(`📋 登录请求响应: ${response.status}, 内容: ${data}`);
-            } catch (error) {
-                log(`❌ 登录请求失败: ${error.message}`, true);
-            }
+
+        async function testSimpleRequest() {
+            log(`🔹 测试简单 CORS 请求（不触发预检）...`, 'info');
+            await testCORS('GET');
         }
-        
-        // 页面加载时自动测试OPTIONS
-        window.onload = function() {
-            log('🚀 页面加载完成，可以开始测试CORS功能');
-            log('💡 提示：复杂请求会自动触发OPTIONS预检，简单请求不会');
-        };
+
+        async function testComplexRequest() {
+            log(`🔸 测试复杂 CORS 请求（触发预检）...`, 'info');
+            
+            // 先勾选自定义头部选项
+            document.getElementById('sendAuth').checked = true;
+            document.getElementById('sendCustom').checked = true;
+            
+            await testCORS('POST');
+        }
+
+        // 页面加载时的初始化
+        window.addEventListener('load', function() {
+            log('🎉 CORS 测试工具已加载', 'success');
+            log('💡 提示: 请确保服务器已启动在正确的端口上', 'info');
+        });
     </script>
 </body>
 </html> 

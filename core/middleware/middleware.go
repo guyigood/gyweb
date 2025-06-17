@@ -56,12 +56,12 @@ func CORS() HandlerFunc {
 		}
 
 		c.SetHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Custom-Header")
+		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Custom-Header, Token")
 		c.SetHeader("Access-Control-Max-Age", "86400") // 24小时缓存预检结果
 
-		// 对于OPTIONS请求，还需要设置额外的头部
+		// 对于OPTIONS请求，立即响应，不继续执行后续中间件
 		if c.Method == "OPTIONS" {
-			log.Printf("[CORS] OPTIONS请求，设置完整的预检响应头")
+			log.Printf("[CORS] OPTIONS预检请求，立即响应")
 
 			// 检查预检请求的头部
 			requestMethod := c.GetHeader("Access-Control-Request-Method")
@@ -72,12 +72,14 @@ func CORS() HandlerFunc {
 			// 添加暴露的头部
 			c.SetHeader("Access-Control-Expose-Headers", "Content-Length, Content-Type, Authorization")
 
-			// 确保Content-Type正确设置
+			// 设置正确的Content-Type和状态码
 			c.SetHeader("Content-Type", "text/plain; charset=utf-8")
-			c.SetHeader("Content-Length", "0")
+			c.Status(http.StatusOK) // 使用200状态码
 
-			// 确保没有响应体内容
-			c.Status(http.StatusNoContent) // 使用204而不是200
+			// 写入空响应体（重要：必须写入响应体，即使是空的）
+			c.Writer.Write([]byte(""))
+
+			log.Printf("[CORS] OPTIONS响应已发送，中止后续中间件执行")
 			c.Abort()
 			return
 		}
