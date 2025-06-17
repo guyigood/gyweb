@@ -18,8 +18,8 @@ func main() {
 	r := engine.New()
 	// 启用OpenAPI - 一行代码！
 	docs := openapi.EnableOpenAPI(r, openapi.OpenAPIConfig{
-		Title:       "FirstWeb API接口文档",
-		Description: "FirstWeb项目API接口说明，支持用户认证和数据库通用操作",
+		Title:       "体温计管理系统 API接口文档",
+		Description: "体温计管理系统API接口说明，支持设备管理、病人管理、传感器数据统计和MQTT数据接收",
 		Version:     "1.0.0",
 	})
 
@@ -35,19 +35,32 @@ func main() {
 	}
 	docs.GenerateFromAnnotations("./controller/sysbase")
 	docs.GenerateFromAnnotations("./controller/dbcommon")
+	docs.GenerateFromAnnotations("./controller/statistics")
 
 	fmt.Println("OpenAPI文档生成成功！")
-	// 使用中间件
+
+	// 启动MQTT服务（在后台运行）
+	go func() {
+		fmt.Println("正在启动MQTT服务...")
+		service.StartMQTTService()
+	}()
+
+	// 使用中间件 - 注意顺序很重要
+	r.Use(middleware.CORS()) // CORS必须在最前面
 	r.Use(middleware.Logger())
 	r.Use(middleware.Recovery())
-	r.Use(middleware.CORS())
 	r.Use(middleware.RateLimit(100))
-	CustomAuth(r) //设置为自定义鉴权
+	CustomAuth(r)      //设置为自定义鉴权
+	r.Use(lib.LogDb()) // 将日志中间件放在认证中间件之后
+
+	// 添加测试路由
+	AddTestRoutes(r)
+
 	RegRoute(r)
-	r.Use(lib.LogDb())
 	// 启动服务器
 	fmt.Println("正在启动服务器，端口：8080")
 	fmt.Println("OpenAPI文档地址：http://localhost:8080/swagger")
+	fmt.Println("CORS测试页面：请在浏览器中打开 cors_test.html")
 	err = r.Run(":8080")
 	if err != nil {
 		fmt.Printf("服务器启动失败: %v\n", err)
@@ -65,10 +78,11 @@ func CustomAuth(r *engine.Engine) {
 				"/api/auth/login",
 				"/api/test",      // 添加测试路径
 				"/debug/request", // 添加调试路径
+				"/cors/status",   // 添加CORS状态检查
 				"/swagger", "/swagger/", "/swagger/index.html",
 				"/docs", "/docs/",
 			}, // 白名单路径
-			[]string{"/static/", "/public/", "/swagger/"}, // 白名单前缀
+			[]string{"/static/", "/public/", "/swagger/", "/api/test/"}, // 白名单前缀
 			nil,
 		).
 		Build()

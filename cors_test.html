@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { margin: 5px; padding: 10px 15px; }
+    </style>
+</head>
+<body>
+    <h1>CORS和跨域请求测试</h1>
+    
+    <div>
+        <button onclick="testOptionsRequest()">测试OPTIONS预检请求</button>
+        <button onclick="testSimplePost()">测试简单POST请求</button>
+        <button onclick="testComplexPost()">测试复杂POST请求(带自定义头)</button>
+        <button onclick="testLogin()">测试登录接口</button>
+        <button onclick="clearResults()">清除结果</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        
+        function log(message, isError = false) {
+            const div = document.createElement('div');
+            div.className = 'result ' + (isError ? 'error' : 'success');
+            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + '</strong>: ' + message;
+            document.getElementById('results').appendChild(div);
+            console.log(message);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testOptionsRequest() {
+            log('🔍 手动测试OPTIONS请求...');
+            try {
+                const response = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,Authorization'
+                    }
+                });
+                
+                log(`✅ OPTIONS请求成功: ${response.status}`);
+                log(`📋 响应头: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+            } catch (error) {
+                log(`❌ OPTIONS请求失败: ${error.message}`, true);
+            }
+        }
+        
+        async function testSimplePost() {
+            log('📤 测试简单POST请求...');
+            try {
+                const response = await fetch(API_BASE + '/api/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'Hello from CORS test'
+                    })
+                });
+                
+                const data = await response.text();
+                log(`✅ 简单POST请求成功: ${response.status}, 响应: ${data}`);
+            } catch (error) {
+                log(`❌ 简单POST请求失败: ${error.message}`, true);
+            }
+        }
+        
+        async function testComplexPost() {
+            log('🔧 测试复杂POST请求(会触发预检)...');
+            try {
+                const response = await fetch(API_BASE + '/api/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token',
+                        'X-Custom-Header': 'test-value'
+                    },
+                    body: JSON.stringify({
+                        message: 'Complex request with custom headers'
+                    })
+                });
+                
+                const data = await response.text();
+                log(`✅ 复杂POST请求成功: ${response.status}, 响应: ${data}`);
+            } catch (error) {
+                log(`❌ 复杂POST请求失败: ${error.message}`, true);
+            }
+        }
+        
+        async function testLogin() {
+            log('🔐 测试登录接口...');
+            try {
+                const response = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'test',
+                        password: 'test'
+                    })
+                });
+                
+                const data = await response.text();
+                log(`📋 登录请求响应: ${response.status}, 内容: ${data}`);
+            } catch (error) {
+                log(`❌ 登录请求失败: ${error.message}`, true);
+            }
+        }
+        
+        // 页面加载时自动测试OPTIONS
+        window.onload = function() {
+            log('🚀 页面加载完成，可以开始测试CORS功能');
+            log('💡 提示：复杂请求会自动触发OPTIONS预检，简单请求不会');
+        };
+    </script>
+</body>
+</html> 

@@ -39,17 +39,35 @@ func Recovery() HandlerFunc {
 // CORS 跨域中间件
 func CORS() HandlerFunc {
 	return func(c *gyarn.Context) {
+		origin := c.GetHeader("Origin")
+
 		// 添加调试日志
-		log.Printf("[CORS] 处理请求: %s %s", c.Method, c.Path)
+		log.Printf("[CORS] 处理请求: %s %s, Origin: %s", c.Method, c.Path, origin)
 
-		c.SetHeader("Access-Control-Allow-Origin", "*")
-		c.SetHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		// 设置CORS头部 - 更完整的配置
+		if origin != "" {
+			c.SetHeader("Access-Control-Allow-Origin", origin) // 使用具体的Origin而不是*
+		} else {
+			c.SetHeader("Access-Control-Allow-Origin", "*")
+		}
+
+		c.SetHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Custom-Header")
 		c.SetHeader("Access-Control-Allow-Credentials", "true")
+		c.SetHeader("Access-Control-Max-Age", "86400") // 24小时缓存预检结果
 
+		// 对于OPTIONS请求，还需要设置额外的头部
 		if c.Method == "OPTIONS" {
-			// OPTIONS请求是浏览器预检请求，处理完后必须停止继续执行
-			log.Printf("[CORS] OPTIONS请求，直接返回200")
+			log.Printf("[CORS] OPTIONS请求，设置完整的预检响应头")
+
+			// 添加暴露的头部
+			c.SetHeader("Access-Control-Expose-Headers", "Content-Length, Content-Type")
+
+			// 确保Content-Type也被设置
+			c.SetHeader("Content-Type", "text/plain; charset=utf-8")
+			c.SetHeader("Content-Length", "0")
+
+			// 立即返回成功状态，不继续执行后续中间件
 			c.Status(http.StatusOK)
 			c.Abort() // 关键：停止后续中间件执行，防止进入认证中间件
 			return
