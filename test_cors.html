@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS测试</title>
+</head>
+<body>
+    <h1>CORS和OPTIONS请求测试</h1>
+    
+    <button onclick="testOptions()">测试OPTIONS请求</button>
+    <button onclick="testPost()">测试POST请求</button>
+    <button onclick="testPostWithAuth()">测试POST请求(带认证)</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        
+        function log(message) {
+            document.getElementById('results').innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+        }
+        
+        async function testOptions() {
+            log('发送OPTIONS请求...');
+            try {
+                const response = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'http://localhost:3000',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,Authorization'
+                    }
+                });
+                log('OPTIONS请求成功: ' + response.status);
+                log('CORS Headers: ' + JSON.stringify(Object.fromEntries(response.headers)));
+            } catch (error) {
+                log('OPTIONS请求失败: ' + error.message);
+            }
+        }
+        
+        async function testPost() {
+            log('发送POST请求(无认证)...');
+            try {
+                const response = await fetch(API_BASE + '/api/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        message: 'test'
+                    })
+                });
+                const data = await response.text();
+                log('POST请求响应: ' + response.status + ', 内容: ' + data);
+            } catch (error) {
+                log('POST请求失败: ' + error.message);
+            }
+        }
+        
+        async function testPostWithAuth() {
+            log('发送POST请求(带认证)...');
+            try {
+                const response = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        username: 'test',
+                        password: 'test'
+                    })
+                });
+                const data = await response.text();
+                log('POST请求(带认证)响应: ' + response.status + ', 内容: ' + data);
+            } catch (error) {
+                log('POST请求(带认证)失败: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html> 

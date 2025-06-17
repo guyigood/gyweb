@@ -61,14 +61,20 @@ func CustomAuth(r *engine.Engine) {
 			c.Error(103, "未授权")
 		}).
 		AddWhitelist(
-			[]string{"/api/auth/login", "/swagger", "/swagger/", "/swagger/index.html", "/docs", "/docs/"}, // 白名单路径
-			[]string{"/static/", "/public/", "/swagger/"},                                                  // 白名单前缀
+			[]string{
+				"/api/auth/login",
+				"/api/test",      // 添加测试路径
+				"/debug/request", // 添加调试路径
+				"/swagger", "/swagger/", "/swagger/index.html",
+				"/docs", "/docs/",
+			}, // 白名单路径
+			[]string{"/static/", "/public/", "/swagger/"}, // 白名单前缀
 			nil,
 		).
 		Build()
 	r.Use(basicAuth)
-
 }
+
 func JwtAuth(r *engine.Engine) {
 	jwtAuth := middleware.NewAuthManager().
 		UseJWT(public.GetJwtConfig()).

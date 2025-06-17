@@ -39,18 +39,23 @@ func Recovery() HandlerFunc {
 // CORS 跨域中间件
 func CORS() HandlerFunc {
 	return func(c *gyarn.Context) {
+		// 添加调试日志
+		log.Printf("[CORS] 处理请求: %s %s", c.Method, c.Path)
+
 		c.SetHeader("Access-Control-Allow-Origin", "*")
 		c.SetHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
 		c.SetHeader("Access-Control-Allow-Credentials", "true")
 
 		if c.Method == "OPTIONS" {
-			//fmt.Println("CORS OPTIONS")
+			// OPTIONS请求是浏览器预检请求，处理完后必须停止继续执行
+			log.Printf("[CORS] OPTIONS请求，直接返回200")
 			c.Status(http.StatusOK)
-			c.Abort() // 停止后续中间件的执行
+			c.Abort() // 关键：停止后续中间件执行，防止进入认证中间件
 			return
 		}
 
+		log.Printf("[CORS] 非OPTIONS请求，继续执行后续中间件")
 		c.Next()
 	}
 }
