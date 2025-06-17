@@ -140,11 +140,12 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		c.Handlers = append(c.Handlers, handlers...)
 	} else {
 		if req.Method != "OPTIONS" {
-
 			fmt.Printf("[DEBUG] 未找到路由: %s %s\n", req.Method, req.URL.Path)
-			c.Handlers = append(c.Handlers, func(c *gyarn.Context) {
+			c.Error(http.StatusNotFound, "404 NOT FOUND: %s\n"+c.Path)
+			/*c.Handlers = append(c.Handlers, func(c *gyarn.Context) {
 				c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
-			})
+			})*/
+			return
 		}
 	}
 
