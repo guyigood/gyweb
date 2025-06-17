@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简单CORS测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .result { 
+            margin: 10px 0; 
+            padding: 15px; 
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { 
+            background-color: #d4edda; 
+            border: 1px solid #c3e6cb; 
+            color: #155724;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border: 1px solid #f5c6cb; 
+            color: #721c24;
+        }
+        button { 
+            margin: 5px; 
+            padding: 12px 20px; 
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 CORS问题调试页面</h1>
+        
+        <div class="info">
+            <strong>📍 当前页面地址:</strong> <span id="currentUrl"></span><br>
+            <strong>🎯 测试目标:</strong> http://localhost:8080<br>
+            <strong>⚡ 这是跨域请求!</strong> 需要CORS支持
+        </div>
+        
+        <div>
+            <button onclick="testDirectAccess()">🌐 测试直接访问API</button>
+            <button onclick="testPreflight()">✈️ 测试预检请求</button>
+            <button onclick="testSimplePost()">📝 测试简单POST</button>
+            <button onclick="testComplexPost()">🔥 测试复杂POST</button>
+            <button onclick="clearLogs()">🗑️ 清除日志</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        document.getElementById('currentUrl').textContent = window.location.href;
+        
+        function log(message, type = 'success') {
+            const div = document.createElement('div');
+            div.className = 'result ' + type;
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            document.getElementById('results').appendChild(div);
+            console.log(message);
+            
+            // 自动滚动到底部
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearLogs() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        // 测试直接访问API（同域方式）
+        async function testDirectAccess() {
+            log('🌐 测试直接访问API...');
+            try {
+                const response = await fetch('http://localhost:8080/cors/status');
+                const data = await response.json();
+                log('✅ 直接访问成功: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('❌ 直接访问失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 手动测试预检请求
+        async function testPreflight() {
+            log('✈️ 发送OPTIONS预检请求...');
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type,authorization'
+                    }
+                });
+                
+                log('✅ OPTIONS状态: ' + response.status + ' ' + response.statusText);
+                
+                // 检查响应头
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials'),
+                    'Access-Control-Max-Age': response.headers.get('Access-Control-Max-Age')
+                };
+                
+                log('📋 CORS响应头: ' + JSON.stringify(corsHeaders, null, 2));
+                
+                // 检查关键配置
+                if (corsHeaders['Access-Control-Allow-Origin'] === window.location.origin) {
+                    log('✅ Origin匹配正确');
+                } else {
+                    log('❌ Origin匹配错误: 期望 ' + window.location.origin + ', 实际 ' + corsHeaders['Access-Control-Allow-Origin'], 'error');
+                }
+                
+            } catch (error) {
+                log('❌ OPTIONS请求失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 测试简单POST请求
+        async function testSimplePost() {
+            log('📝 发送简单POST请求...');
+            try {
+                const response = await fetch('http://localhost:8080/api/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: '这是一个简单的POST请求',
+                        timestamp: Date.now()
+                    })
+                });
+                
+                const data = await response.json();
+                log('✅ 简单POST成功: ' + JSON.stringify(data, null, 2));
+                
+            } catch (error) {
+                log('❌ 简单POST失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 测试复杂POST请求（会触发预检）
+        async function testComplexPost() {
+            log('🔥 发送复杂POST请求（会自动触发预检）...');
+            try {
+                const response = await fetch('http://localhost:8080/api/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token-123',
+                        'X-Custom-Header': 'custom-value'
+                    },
+                    body: JSON.stringify({
+                        message: '这是一个复杂的POST请求',
+                        timestamp: Date.now(),
+                        complex: true
+                    })
+                });
+                
+                const data = await response.json();
+                log('✅ 复杂POST成功: ' + JSON.stringify(data, null, 2));
+                
+            } catch (error) {
+                log('❌ 复杂POST失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 页面加载完成
+        window.onload = function() {
+            log('🚀 CORS调试页面加载完成');
+            log('💡 请按顺序测试：直接访问 → 预检请求 → 简单POST → 复杂POST');
+        };
+    </script>
+</body>
+</html> 

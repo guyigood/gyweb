@@ -44,32 +44,41 @@ func CORS() HandlerFunc {
 		// 添加调试日志
 		log.Printf("[CORS] 处理请求: %s %s, Origin: %s", c.Method, c.Path, origin)
 
-		// 设置CORS头部 - 更完整的配置
+		// 设置CORS头部 - 修复Origin和Credentials冲突问题
 		if origin != "" {
-			c.SetHeader("Access-Control-Allow-Origin", origin) // 使用具体的Origin而不是*
+			// 有Origin时，使用具体的Origin值
+			c.SetHeader("Access-Control-Allow-Origin", origin)
+			c.SetHeader("Access-Control-Allow-Credentials", "true")
 		} else {
+			// 没有Origin时（同域请求），可以使用*
 			c.SetHeader("Access-Control-Allow-Origin", "*")
+			// 注意：设置*时不能设置Credentials为true
 		}
 
 		c.SetHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		c.SetHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Custom-Header")
-		c.SetHeader("Access-Control-Allow-Credentials", "true")
 		c.SetHeader("Access-Control-Max-Age", "86400") // 24小时缓存预检结果
 
 		// 对于OPTIONS请求，还需要设置额外的头部
 		if c.Method == "OPTIONS" {
 			log.Printf("[CORS] OPTIONS请求，设置完整的预检响应头")
 
-			// 添加暴露的头部
-			c.SetHeader("Access-Control-Expose-Headers", "Content-Length, Content-Type")
+			// 检查预检请求的头部
+			requestMethod := c.GetHeader("Access-Control-Request-Method")
+			requestHeaders := c.GetHeader("Access-Control-Request-Headers")
 
-			// 确保Content-Type也被设置
+			log.Printf("[CORS] 预检请求 - Method: %s, Headers: %s", requestMethod, requestHeaders)
+
+			// 添加暴露的头部
+			c.SetHeader("Access-Control-Expose-Headers", "Content-Length, Content-Type, Authorization")
+
+			// 确保Content-Type正确设置
 			c.SetHeader("Content-Type", "text/plain; charset=utf-8")
 			c.SetHeader("Content-Length", "0")
 
-			// 立即返回成功状态，不继续执行后续中间件
-			c.Status(http.StatusOK)
-			c.Abort() // 关键：停止后续中间件执行，防止进入认证中间件
+			// 确保没有响应体内容
+			c.Status(http.StatusNoContent) // 使用204而不是200
+			c.Abort()
 			return
 		}
 
