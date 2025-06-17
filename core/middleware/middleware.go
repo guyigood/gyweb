@@ -47,7 +47,7 @@ func CORS() HandlerFunc {
 		if c.Method == "OPTIONS" {
 			//fmt.Println("CORS OPTIONS")
 			c.Status(http.StatusOK)
-			//c.Abort() // 停止后续中间件的执行
+			c.Abort() // 停止后续中间件的执行
 			return
 		}
 
