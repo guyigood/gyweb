@@ -100,25 +100,59 @@ func Auth() HandlerFunc {
 		Build()
 }
 
-// RateLimit 限流中间件
+// RateLimit 限流中间件 - 简化版本，向后兼容
 func RateLimit(limit int) HandlerFunc {
-	// 使用令牌桶算法实现限流
-	tokens := make(chan struct{}, limit)
-	ticker := time.NewTicker(time.Second)
-	done := make(chan struct{})
+	return RateLimitAdvanced(RateLimitConfig{
+		RequestsPerSecond: limit,
+		BurstSize:         limit,
+		Debug:             false,
+	})
+}
+
+// RateLimitConfig 限流配置
+type RateLimitConfig struct {
+	// 每秒允许的请求数
+	RequestsPerSecond int
+	// 突发请求数（令牌桶容量）
+	BurstSize int
+	// 是否启用调试日志
+	Debug bool
+}
+
+// RateLimitAdvanced 高级限流中间件，支持更多配置
+func RateLimitAdvanced(config RateLimitConfig) HandlerFunc {
+	if config.RequestsPerSecond <= 0 {
+		config.RequestsPerSecond = 100
+	}
+	if config.BurstSize <= 0 {
+		config.BurstSize = config.RequestsPerSecond
+	}
+
+	// 使用令牌桶算法
+	tokens := make(chan struct{}, config.BurstSize)
+
+	// 初始化时填充所有令牌
+	for i := 0; i < config.BurstSize; i++ {
+		tokens <- struct{}{}
+	}
+
+	// 计算补充间隔
+	interval := time.Second / time.Duration(config.RequestsPerSecond)
+	if config.Debug {
+		log.Printf("[RateLimit] 配置: %d req/s, 突发: %d, 补充间隔: %v",
+			config.RequestsPerSecond, config.BurstSize, interval)
+	}
 
 	// 定期补充令牌
+	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
-		for {
+		for range ticker.C {
 			select {
-			case <-ticker.C:
-				select {
-				case tokens <- struct{}{}:
-				default:
-				}
-			case <-done:
-				return
+			case tokens <- struct{}{}:
+				// 成功添加令牌
+			default:
+				// 令牌桶已满
 			}
 		}
 	}()
@@ -126,13 +160,15 @@ func RateLimit(limit int) HandlerFunc {
 	return func(c *gyarn.Context) {
 		select {
 		case <-tokens:
+			if config.Debug {
+				log.Printf("[RateLimit] 请求通过: %s %s", c.Method, c.Path)
+			}
 			c.Next()
 		default:
+			if config.Debug {
+				log.Printf("[RateLimit] 请求被限流: %s %s", c.Method, c.Path)
+			}
 			c.Fail(http.StatusTooManyRequests, "Too Many Requests")
-		}
-		// 当中间件被销毁时，停止 ticker
-		if c.IsAborted() {
-			close(done)
 		}
 	}
 }
