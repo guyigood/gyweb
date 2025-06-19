@@ -8,6 +8,9 @@ import (
 
 // interface转字符串
 func TypetoStr(data interface{}) string {
+	if data == nil {
+		return ""
+	}
 	return fmt.Sprintf("%v", data)
 }
 
