@@ -250,9 +250,9 @@ func (db *DB) Get() (MapModel, error) {
 	for i, col := range columns {
 		val := values[i]
 		if b, ok := val.([]byte); ok {
-			result[col] = string(b)
+			result[strings.ToLower(col)] = string(b)
 		} else {
-			result[col] = val
+			result[strings.ToLower(col)] = val
 		}
 	}
 
@@ -290,9 +290,9 @@ func (db *DB) All() ([]MapModel, error) {
 		for i, col := range columns {
 			val := values[i]
 			if b, ok := val.([]byte); ok {
-				result[col] = string(b)
+				result[strings.ToLower(col)] = string(b)
 			} else {
-				result[col] = val
+				result[strings.ToLower(col)] = val
 			}
 		}
 		results = append(results, result)
@@ -499,9 +499,9 @@ func (db *DB) Query(sql string, args ...any) ([]MapModel, error) {
 		for i, col := range columns {
 			val := values[i]
 			if b, ok := val.([]byte); ok {
-				result[col] = string(b)
+				result[strings.ToLower(col)] = string(b)
 			} else {
-				result[col] = val
+				result[strings.ToLower(col)] = val
 			}
 		}
 		results = append(results, result)
