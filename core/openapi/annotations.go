@@ -263,6 +263,11 @@ func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast
 
 // generateSchemaFromType 从AST类型生成Schema
 func (p *AnnotationParser) generateSchemaFromType(expr ast.Expr) *Schema {
+	return p.generateSchemaFromTypeInline(expr, true)
+}
+
+// generateSchemaFromTypeInline 从AST类型生成Schema，支持内联选项
+func (p *AnnotationParser) generateSchemaFromTypeInline(expr ast.Expr, inline bool) *Schema {
 	switch t := expr.(type) {
 	case *ast.Ident:
 		// 基本类型
@@ -280,28 +285,38 @@ func (p *AnnotationParser) generateSchemaFromType(expr ast.Expr) *Schema {
 		case "bool":
 			return &Schema{Type: "boolean"}
 		default:
-			// 检查是否为已知的结构体类型
-			if _, exists := p.modelCache[t.Name]; exists {
+			// 结构体类型处理
+			if cachedSchema, exists := p.modelCache[t.Name]; exists {
+				if inline {
+					// 返回内联展开的schema，深拷贝以避免修改原始cache
+					return p.deepCopySchema(cachedSchema)
+				} else {
+					// 返回引用
+					return &Schema{Ref: fmt.Sprintf("#/components/schemas/%s", t.Name)}
+				}
+			}
+			// 未知结构体类型，也尝试内联展开
+			if inline {
+				return &Schema{Type: "object", Properties: make(map[string]*Schema)}
+			} else {
 				return &Schema{Ref: fmt.Sprintf("#/components/schemas/%s", t.Name)}
 			}
-			// 其他结构体类型，也创建引用
-			return &Schema{Ref: fmt.Sprintf("#/components/schemas/%s", t.Name)}
 		}
 	case *ast.ArrayType:
 		// 数组类型
-		itemSchema := p.generateSchemaFromType(t.Elt)
+		itemSchema := p.generateSchemaFromTypeInline(t.Elt, inline)
 		return &Schema{
 			Type:  "array",
 			Items: itemSchema,
 		}
 	case *ast.StarExpr:
 		// 指针类型，递归处理
-		return p.generateSchemaFromType(t.X)
+		return p.generateSchemaFromTypeInline(t.X, inline)
 	case *ast.MapType:
 		// Map类型
 		return &Schema{
 			Type:                 "object",
-			AdditionalProperties: p.generateSchemaFromType(t.Value),
+			AdditionalProperties: p.generateSchemaFromTypeInline(t.Value, inline),
 		}
 	case *ast.SelectorExpr:
 		// 包.类型格式，如 time.Time
@@ -315,6 +330,63 @@ func (p *AnnotationParser) generateSchemaFromType(expr ast.Expr) *Schema {
 		// 未知类型，返回object
 		return &Schema{Type: "object"}
 	}
+}
+
+// deepCopySchema 深拷贝Schema对象
+func (p *AnnotationParser) deepCopySchema(original *Schema) *Schema {
+	if original == nil {
+		return nil
+	}
+
+	copy := &Schema{
+		Type:        original.Type,
+		Format:      original.Format,
+		Title:       original.Title,
+		Description: original.Description,
+		Default:     original.Default,
+		Example:     original.Example,
+		Pattern:     original.Pattern,
+		Minimum:     original.Minimum,
+		Maximum:     original.Maximum,
+		MinLength:   original.MinLength,
+		MaxLength:   original.MaxLength,
+	}
+
+	// 拷贝Required数组
+	if original.Required != nil {
+		copy.Required = make([]string, len(original.Required))
+		copy.Required = append(copy.Required, original.Required...)
+	}
+
+	// 拷贝Enum数组
+	if original.Enum != nil {
+		copy.Enum = make([]interface{}, len(original.Enum))
+		copy.Enum = append(copy.Enum, original.Enum...)
+	}
+
+	// 递归拷贝Properties
+	if original.Properties != nil {
+		copy.Properties = make(map[string]*Schema)
+		for key, value := range original.Properties {
+			copy.Properties[key] = p.deepCopySchema(value)
+		}
+	}
+
+	// 递归拷贝Items
+	if original.Items != nil {
+		copy.Items = p.deepCopySchema(original.Items)
+	}
+
+	// 处理AdditionalProperties
+	if original.AdditionalProperties != nil {
+		if schema, ok := original.AdditionalProperties.(*Schema); ok {
+			copy.AdditionalProperties = p.deepCopySchema(schema)
+		} else {
+			copy.AdditionalProperties = original.AdditionalProperties
+		}
+	}
+
+	return copy
 }
 
 // parseFunction 解析函数注释
@@ -434,7 +506,10 @@ func (p *AnnotationParser) parseComments(comments string) *APIDoc {
 }
 
 // parseParam 解析参数注解
-// @Param name query string true "参数描述" default(value)
+// 支持多种格式：
+// @Param name query string true "参数说明"
+// @Param data body User true "用户信息"
+// @Param data body dto.LoginRequest true "登录请求参数"
 func (p *AnnotationParser) parseParam(line string) *Parameter {
 	// 移除 @Param 前缀
 	content := strings.TrimSpace(strings.TrimPrefix(line, "@Param"))
@@ -451,7 +526,27 @@ func (p *AnnotationParser) parseParam(line string) *Parameter {
 
 	// 解析类型
 	paramType := parts[2]
-	param.Schema = &Schema{Type: p.convertType(paramType)}
+
+	// 特殊处理body参数
+	if param.In == "body" {
+		// body参数需要特殊处理，直接使用内联schema
+		modelName := paramType
+
+		// 移除包名前缀
+		if dotIndex := strings.LastIndex(modelName, "."); dotIndex != -1 {
+			modelName = modelName[dotIndex+1:]
+		}
+
+		// 查找对应的schema并内联展开
+		if cachedSchema, exists := p.modelCache[modelName]; exists {
+			param.Schema = p.deepCopySchema(cachedSchema)
+		} else {
+			param.Schema = &Schema{Type: "object"}
+		}
+	} else {
+		// 非body参数使用简单类型转换
+		param.Schema = &Schema{Type: p.convertType(paramType)}
+	}
 
 	// 解析是否必需
 	if len(parts) > 3 {
@@ -465,7 +560,9 @@ func (p *AnnotationParser) parseParam(line string) *Parameter {
 
 	// 解析默认值
 	if defaultMatch := regexp.MustCompile(`default\(([^)]+)\)`).FindStringSubmatch(content); len(defaultMatch) > 1 {
-		param.Schema.Default = defaultMatch[1]
+		if param.Schema != nil {
+			param.Schema.Default = defaultMatch[1]
+		}
 	}
 
 	// 解析示例
@@ -477,7 +574,10 @@ func (p *AnnotationParser) parseParam(line string) *Parameter {
 }
 
 // parseResponse 解析响应注解
+// 支持多种格式：
 // @Success 200 {object} User "成功返回用户信息"
+// @Success 200 {object} dto.StandardResponse{data=User} "成功"
+// @Success 200 {array} User "返回用户列表"
 func (p *AnnotationParser) parseResponse(line string) *Response {
 	// 提取描述（在引号中）
 	var description string
@@ -492,18 +592,21 @@ func (p *AnnotationParser) parseResponse(line string) *Response {
 		Content:     make(map[string]MediaType),
 	}
 
-	// 解析响应体类型
-	if typeMatch := regexp.MustCompile(`\{([^}]+)\}\s+(\w+)`).FindStringSubmatch(line); len(typeMatch) > 2 {
-		responseType := typeMatch[1]
-		modelName := typeMatch[2]
+	// 解析复杂的响应体类型，支持嵌套格式
+	// 匹配格式如: {object} dto.StandardResponse{data=User}
+	complexMatch := regexp.MustCompile(`\{([^}]+)\}\s+([^"]+)`).FindStringSubmatch(line)
+	if len(complexMatch) >= 3 {
+		responseType := complexMatch[1]
+		modelSpec := strings.TrimSpace(complexMatch[2])
 
 		var schema *Schema
-		if responseType == "object" {
-			schema = &Schema{
-				Ref: fmt.Sprintf("#/components/schemas/%s", modelName),
-			}
+
+		if strings.Contains(modelSpec, "{") && strings.Contains(modelSpec, "}") {
+			// 处理嵌套结构，如 dto.StandardResponse{data=User}
+			schema = p.parseNestedResponseSchema(responseType, modelSpec)
 		} else {
-			schema = &Schema{Type: p.convertType(responseType)}
+			// 简单类型，如 User
+			schema = p.parseSimpleResponseSchema(responseType, modelSpec)
 		}
 
 		response.Content["application/json"] = MediaType{
@@ -512,6 +615,108 @@ func (p *AnnotationParser) parseResponse(line string) *Response {
 	}
 
 	return response
+}
+
+// parseNestedResponseSchema 解析嵌套的响应Schema
+// 处理如 dto.StandardResponse{data=User} 这样的格式
+func (p *AnnotationParser) parseNestedResponseSchema(responseType, modelSpec string) *Schema {
+	// 提取基础类型名
+	baseTypeMatch := regexp.MustCompile(`^([^{]+)`).FindStringSubmatch(modelSpec)
+	if len(baseTypeMatch) < 2 {
+		return &Schema{Type: "object"}
+	}
+
+	baseTypeName := strings.TrimSpace(baseTypeMatch[1])
+	// 移除包名前缀，如 dto.StandardResponse -> StandardResponse
+	if dotIndex := strings.LastIndex(baseTypeName, "."); dotIndex != -1 {
+		baseTypeName = baseTypeName[dotIndex+1:]
+	}
+
+	// 获取基础Schema
+	var baseSchema *Schema
+	if cachedSchema, exists := p.modelCache[baseTypeName]; exists {
+		baseSchema = p.deepCopySchema(cachedSchema)
+	} else {
+		baseSchema = &Schema{Type: "object", Properties: make(map[string]*Schema)}
+	}
+
+	// 解析嵌套部分，如 {data=User}
+	nestedMatch := regexp.MustCompile(`\{([^}]+)\}`).FindStringSubmatch(modelSpec)
+	if len(nestedMatch) >= 2 {
+		nestedContent := nestedMatch[1]
+
+		// 解析键值对，如 data=User
+		pairs := strings.Split(nestedContent, ",")
+		for _, pair := range pairs {
+			if keyValue := strings.Split(strings.TrimSpace(pair), "="); len(keyValue) == 2 {
+				key := strings.TrimSpace(keyValue[0])
+				valueType := strings.TrimSpace(keyValue[1])
+
+				// 确保baseSchema有Properties
+				if baseSchema.Properties == nil {
+					baseSchema.Properties = make(map[string]*Schema)
+				}
+
+				// 根据valueType创建内联schema
+				var valueSchema *Schema
+				if responseType == "array" {
+					// 如果是数组类型
+					if cachedSchema, exists := p.modelCache[valueType]; exists {
+						valueSchema = &Schema{
+							Type:  "array",
+							Items: p.deepCopySchema(cachedSchema),
+						}
+					} else {
+						valueSchema = &Schema{Type: "array", Items: &Schema{Type: "object"}}
+					}
+				} else {
+					// 对象类型
+					if cachedSchema, exists := p.modelCache[valueType]; exists {
+						valueSchema = p.deepCopySchema(cachedSchema)
+					} else {
+						valueSchema = &Schema{Type: "object"}
+					}
+				}
+
+				baseSchema.Properties[key] = valueSchema
+			}
+		}
+	}
+
+	return baseSchema
+}
+
+// parseSimpleResponseSchema 解析简单的响应Schema
+func (p *AnnotationParser) parseSimpleResponseSchema(responseType, modelName string) *Schema {
+	// 移除包名前缀
+	if dotIndex := strings.LastIndex(modelName, "."); dotIndex != -1 {
+		modelName = modelName[dotIndex+1:]
+	}
+
+	if responseType == "array" {
+		// 数组类型
+		if cachedSchema, exists := p.modelCache[modelName]; exists {
+			return &Schema{
+				Type:  "array",
+				Items: p.deepCopySchema(cachedSchema),
+			}
+		} else {
+			return &Schema{
+				Type:  "array",
+				Items: &Schema{Type: "object"},
+			}
+		}
+	} else if responseType == "object" {
+		// 对象类型，直接展开
+		if cachedSchema, exists := p.modelCache[modelName]; exists {
+			return p.deepCopySchema(cachedSchema)
+		} else {
+			return &Schema{Type: "object"}
+		}
+	} else {
+		// 基本类型
+		return &Schema{Type: p.convertType(responseType)}
+	}
 }
 
 // extractResponseCode 提取响应状态码

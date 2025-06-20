@@ -4,12 +4,29 @@
 
 增强版的OpenAPI实现解决了跨文件model引用的问题，能够自动发现项目中所有的结构体定义，并生成详细的参数和返回结果说明，实现类似图片中展示的效果。
 
+## 🚀 最新特性：内联Schema展开
+
+**重要更新**：现在支持将schema直接嵌入到接口的输入输出参数说明中，而不是放在页面下方的独立schemas区域！
+
+### 内联展开效果对比
+
+**之前**：
+- 参数显示为 `$ref: "#/components/schemas/User"`
+- 需要点击跳转到页面下方查看具体字段
+- 文档体验不够直观
+
+**现在**：
+- 参数直接展开显示完整的字段结构
+- 包含字段名称、类型、说明、示例值、是否必需
+- 一目了然，无需跳转，完全符合您的需求！
+
 ## 核心特性
 
 1. **跨文件模型自动发现** - 递归扫描项目目录，自动注册所有结构体
 2. **详细字段说明** - 支持description、example、required等标签
 3. **智能类型推导** - 自动处理嵌入结构体、指针、数组等复杂类型
 4. **完整的JSON Schema** - 生成符合OpenAPI 3.0规范的完整schema定义
+5. **🔥内联Schema展开** - schema直接嵌入接口参数，无需引用跳转
 
 ## 快速开始
 
@@ -26,10 +43,10 @@ import (
 func main() {
     e := engine.New()
     
-    // 启用增强版OpenAPI
+    // 启用增强版OpenAPI（自动支持内联schema）
     docs := openapi.EnableOpenAPI(e, openapi.OpenAPIConfig{
         Title:       "我的API",
-        Description: "完整的API文档示例",
+        Description: "完整的API文档示例，支持内联schema展开",
         Version:     "1.0.0",
     })
     
@@ -105,7 +122,7 @@ type StandardResponse struct {
 }
 ```
 
-### 3. 添加详细的API注解
+### 3. 使用增强的API注解（支持内联展开）
 
 #### controller/auth.go
 ```go
@@ -177,78 +194,69 @@ func GetUserList(c *gyarn.Context) {
 }
 ```
 
-### 4. 路由注册
+## 🎯 内联Schema展开详解
 
+### 支持的注解格式
+
+1. **简单模型展开**
 ```go
-package main
-
-import (
-    "github.com/guyigood/gyweb/core/engine"
-    "github.com/guyigood/gyweb/core/openapi"
-    "your-project/controller"
-)
-
-func main() {
-    e := engine.New()
-    
-    // 启用OpenAPI
-    docs := openapi.EnableOpenAPI(e, openapi.OpenAPIConfig{
-        Title:       "企业管理系统API",
-        Description: "完整的企业管理系统API文档",
-        Version:     "1.0.0",
-    })
-    
-    // 自动发现所有模型
-    docs.GenerateFromAnnotations("./")
-    
-    // 注册路由
-    e.POST("/auth/b/doLogin", controller.DoLogin)
-    e.GET("/user/list", controller.GetUserList)
-    
-    log.Println("API文档地址: http://localhost:8080/swagger")
-    e.Run(":8080")
-}
+// @Param data body User true "用户信息"
+// @Success 200 {object} User "用户信息"
 ```
 
-## 高级用法
-
-### 1. 手动注册复杂模型
-
+2. **嵌套模型展开**
 ```go
-// 如果自动发现无法满足需求，可以手动注册
-docs.RegisterModels(map[string]interface{}{
-    "CustomResponse": CustomResponse{},
-    "ComplexData":    ComplexData{},
-})
+// @Success 200 {object} dto.StandardResponse{data=User} "成功响应"
+// @Success 200 {object} dto.StandardResponse{data=[]User} "用户列表响应"
 ```
 
-### 2. 添加安全认证
-
+3. **数组模型展开**
 ```go
-docs.AddSecurityScheme("ApiKeyAuth", openapi.SecurityScheme{
-    Type: "apiKey",
-    In:   "header",
-    Name: "Authorization",
-})
+// @Success 200 {array} User "用户列表"
 ```
 
-### 3. 自定义响应模板
+### 展开效果
 
-```go
-docs.AddCommonResponses() // 添加常用响应模板
-```
+使用内联schema后，在Swagger UI中您将看到：
+
+**请求参数**：
+- 参数名称：authAccountPasswordLoginParam
+- 类型：object
+- 必需：true
+- 说明：登录参数
+- **展开的字段结构**：
+  - account (string, required): 账号 [example: "admin"]
+  - password (string, required): 密码 [example: "123456"]
+  - device (string): 设备 [example: "web"]
+  - validCode (string): 验证码 [example: "1234"]
+  - validCodeReqNo (string): 验证码请求号 [example: "req123"]
+
+**响应结果**：
+- 状态码：200
+- 说明：登录成功
+- **展开的响应结构**：
+  - code (integer): 响应码：0-成功，其他-错误 [example: 0]
+  - message (string): 响应消息 [example: "操作成功"]
+  - data (object): 响应数据
+    - token (string): 访问令牌 [example: "eyJhbGci..."]
+    - expires (integer): 过期时间戳 [example: 1640995200]
+    - userInfo (object): 用户信息
+      - id (integer): 用户ID [example: 1]
+      - account (string): 账号 [example: "admin"]
+      - name (string): 用户名 [example: "张三"]
+      - ... (完整展开所有字段)
 
 ## 生成效果
 
 使用增强版OpenAPI后，您将获得：
 
-1. **完整的请求参数文档** - 包含参数名称、类型、说明、示例值、是否必需
-2. **详细的响应结构** - 完整的JSON Schema定义，支持嵌套对象
-3. **跨文件模型引用** - 自动发现和引用项目中任何位置的结构体
-4. **智能类型处理** - 正确处理数组、指针、嵌入结构体等复杂类型
-5. **交互式文档** - Swagger UI界面，支持在线测试API
+1. **✅ 完整的内联参数文档** - 所有参数直接展开显示，包含字段名称、类型、说明、示例值、是否必需
+2. **✅ 详细的内联响应结构** - 响应schema完全展开，支持嵌套对象和数组
+3. **✅ 跨文件模型引用** - 自动发现和引用项目中任何位置的结构体
+4. **✅ 智能类型处理** - 正确处理数组、指针、嵌入结构体等复杂类型
+5. **✅ 零配置体验** - 一行代码启用，自动发现所有模型并内联展开
 
-访问 `http://localhost:8080/swagger` 即可查看生成的完整API文档。
+访问 `http://localhost:8080/swagger` 即可看到完全内联展开的API文档界面，完全符合您的需求！
 
 ## 注意事项
 
@@ -257,5 +265,6 @@ docs.AddCommonResponses() // 添加常用响应模板
 3. 使用example标签提供示例值
 4. 使用binding标签标记必需字段
 5. 在注释中使用标准的swagger注解格式
+6. **新特性**：所有schema现在都会自动内联展开，无需额外配置
 
-这样就能生成像您图片中展示的那样详细完整的API文档了！ 
+这样就能生成像您要求的那样，schema直接嵌入到接口参数说明中的完整API文档了！ 
