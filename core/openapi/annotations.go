@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -13,33 +14,112 @@ import (
 
 // AnnotationParser 注解解析器
 type AnnotationParser struct {
-	openapi *OpenAPI
-	fileSet *token.FileSet
+	openapi    *OpenAPI
+	fileSet    *token.FileSet
+	modelCache map[string]*Schema // 缓存已解析的model
+	packageMap map[string]string  // 包名映射
 }
 
 // NewAnnotationParser 创建注解解析器
 func NewAnnotationParser(openapi *OpenAPI) *AnnotationParser {
 	return &AnnotationParser{
-		openapi: openapi,
-		fileSet: token.NewFileSet(),
+		openapi:    openapi,
+		fileSet:    token.NewFileSet(),
+		modelCache: make(map[string]*Schema),
+		packageMap: make(map[string]string),
 	}
 }
 
-// ParseDirectory 解析目录中的Go文件
-func (p *AnnotationParser) ParseDirectory(dir string) error {
-	pattern := filepath.Join(dir, "*.go")
-	files, err := filepath.Glob(pattern)
+// RecursiveParseDirectory 递归解析目录中的Go文件，支持跨文件model发现
+func (p *AnnotationParser) RecursiveParseDirectory(rootDir string) error {
+	// 第一阶段：扫描所有Go文件，收集所有结构体定义
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 跳过隐藏目录和vendor目录
+		if info.IsDir() {
+			name := info.Name()
+			if strings.HasPrefix(name, ".") || name == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// 只处理Go文件
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		return p.scanFileForModels(path)
+	})
+
 	if err != nil {
 		return err
 	}
 
-	for _, file := range files {
-		if err := p.ParseFile(file); err != nil {
-			return fmt.Errorf("解析文件 %s 失败: %v", file, err)
+	// 第二阶段：解析注解和函数
+	return filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			name := info.Name()
+			if strings.HasPrefix(name, ".") || name == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		return p.ParseFile(path)
+	})
+}
+
+// scanFileForModels 扫描文件中的所有模型定义
+func (p *AnnotationParser) scanFileForModels(filename string) error {
+	src, err := parser.ParseFile(p.fileSet, filename, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	// 记录包名
+	packageName := src.Name.Name
+	p.packageMap[filename] = packageName
+
+	// 扫描所有结构体类型
+	for _, decl := range src.Decls {
+		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+			for _, spec := range genDecl.Specs {
+				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+						structName := typeSpec.Name.Name
+
+						// 生成Schema并缓存
+						schema := p.generateSchemaFromStruct(structName, structType)
+						p.modelCache[structName] = schema
+
+						// 注册到OpenAPI Components
+						p.openapi.AddSchema(structName, schema)
+
+						fmt.Printf("[DEBUG] 发现并注册模型: %s\n", structName)
+					}
+				}
+			}
 		}
 	}
 
 	return nil
+}
+
+// ParseDirectory 解析目录中的Go文件
+func (p *AnnotationParser) ParseDirectory(dir string) error {
+	return p.RecursiveParseDirectory(dir)
 }
 
 // ParseFile 解析单个Go文件
@@ -89,7 +169,16 @@ func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast
 
 	for _, field := range structType.Fields.List {
 		if len(field.Names) == 0 {
-			continue // 跳过嵌入字段
+			// 处理嵌入字段
+			if ident, ok := field.Type.(*ast.Ident); ok {
+				// 嵌入结构体，需要合并其字段
+				if embeddedSchema, exists := p.modelCache[ident.Name]; exists && embeddedSchema.Properties != nil {
+					for propName, propSchema := range embeddedSchema.Properties {
+						schema.Properties[propName] = propSchema
+					}
+				}
+			}
+			continue
 		}
 
 		fieldName := field.Names[0].Name
@@ -101,6 +190,7 @@ func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast
 		var jsonName string
 		var description string
 		var example interface{}
+		var required bool
 
 		if field.Tag != nil {
 			tagValue := field.Tag.Value
@@ -110,7 +200,17 @@ func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast
 
 				// 解析json标签
 				if jsonMatch := regexp.MustCompile(`json:"([^"]+)"`).FindStringSubmatch(tagValue); len(jsonMatch) > 1 {
-					jsonName = strings.Split(jsonMatch[1], ",")[0] // 取逗号前的部分
+					jsonParts := strings.Split(jsonMatch[1], ",")
+					jsonName = jsonParts[0]
+
+					// 检查是否必需（没有omitempty）
+					required = true
+					for _, part := range jsonParts {
+						if part == "omitempty" {
+							required = false
+							break
+						}
+					}
 				}
 
 				// 解析description标签
@@ -121,6 +221,13 @@ func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast
 				// 解析example标签
 				if exampleMatch := regexp.MustCompile(`example:"([^"]+)"`).FindStringSubmatch(tagValue); len(exampleMatch) > 1 {
 					example = exampleMatch[1]
+				}
+
+				// 解析binding标签确定必需字段
+				if bindingMatch := regexp.MustCompile(`binding:"([^"]+)"`).FindStringSubmatch(tagValue); len(bindingMatch) > 1 {
+					if strings.Contains(bindingMatch[1], "required") {
+						required = true
+					}
 				}
 			}
 		}
@@ -144,6 +251,11 @@ func (p *AnnotationParser) generateSchemaFromStruct(name string, structType *ast
 		}
 
 		schema.Properties[jsonName] = fieldSchema
+
+		// 添加到必需字段列表
+		if required {
+			schema.Required = append(schema.Required, jsonName)
+		}
 	}
 
 	return schema
@@ -158,15 +270,21 @@ func (p *AnnotationParser) generateSchemaFromType(expr ast.Expr) *Schema {
 		case "string":
 			return &Schema{Type: "string"}
 		case "int", "int8", "int16", "int32", "int64":
-			return &Schema{Type: "integer"}
+			return &Schema{Type: "integer", Format: "int64"}
 		case "uint", "uint8", "uint16", "uint32", "uint64":
-			return &Schema{Type: "integer"}
-		case "float32", "float64":
-			return &Schema{Type: "number"}
+			return &Schema{Type: "integer", Format: "int64", Minimum: &[]float64{0}[0]}
+		case "float32":
+			return &Schema{Type: "number", Format: "float"}
+		case "float64":
+			return &Schema{Type: "number", Format: "double"}
 		case "bool":
 			return &Schema{Type: "boolean"}
 		default:
-			// 其他结构体类型
+			// 检查是否为已知的结构体类型
+			if _, exists := p.modelCache[t.Name]; exists {
+				return &Schema{Ref: fmt.Sprintf("#/components/schemas/%s", t.Name)}
+			}
+			// 其他结构体类型，也创建引用
 			return &Schema{Ref: fmt.Sprintf("#/components/schemas/%s", t.Name)}
 		}
 	case *ast.ArrayType:
@@ -185,6 +303,14 @@ func (p *AnnotationParser) generateSchemaFromType(expr ast.Expr) *Schema {
 			Type:                 "object",
 			AdditionalProperties: p.generateSchemaFromType(t.Value),
 		}
+	case *ast.SelectorExpr:
+		// 包.类型格式，如 time.Time
+		if ident, ok := t.X.(*ast.Ident); ok {
+			if ident.Name == "time" && t.Sel.Name == "Time" {
+				return &Schema{Type: "string", Format: "date-time"}
+			}
+		}
+		return &Schema{Type: "object"}
 	default:
 		// 未知类型，返回object
 		return &Schema{Type: "object"}

@@ -156,7 +156,46 @@ func (ext *EngineExtension) AddSchema(name string, schema *Schema) *EngineExtens
 
 // GenerateFromAnnotations 从注解生成文档
 func (ext *EngineExtension) GenerateFromAnnotations(sourceDir string) error {
-	return ext.openapi.GenerateFromAnnotations(sourceDir)
+	fmt.Printf("[DEBUG OpenAPI] 开始解析注解，源目录: %s\n", sourceDir)
+
+	// 使用增强的注解解析器
+	parser := NewAnnotationParser(ext.openapi)
+
+	// 递归解析目录，自动发现所有模型
+	err := parser.RecursiveParseDirectory(sourceDir)
+	if err != nil {
+		return fmt.Errorf("解析注解失败: %v", err)
+	}
+
+	fmt.Printf("[DEBUG OpenAPI] 注解解析完成\n")
+	return nil
+}
+
+// RegisterModel 注册单个模型到OpenAPI schema
+func (ext *EngineExtension) RegisterModel(name string, model interface{}) *EngineExtension {
+	schema := ext.openapi.GenerateFromStruct(model)
+	ext.openapi.AddSchema(name, schema)
+	fmt.Printf("[DEBUG OpenAPI] 手动注册模型: %s\n", name)
+	return ext
+}
+
+// RegisterModels 批量注册模型
+func (ext *EngineExtension) RegisterModels(models map[string]interface{}) *EngineExtension {
+	for name, model := range models {
+		ext.RegisterModel(name, model)
+	}
+	return ext
+}
+
+// AutoDiscoverModels 自动发现并注册指定包中的所有模型
+func (ext *EngineExtension) AutoDiscoverModels(packagePaths ...string) *EngineExtension {
+	for _, packagePath := range packagePaths {
+		err := ext.GenerateFromAnnotations(packagePath)
+		if err != nil {
+			fmt.Printf("[WARNING OpenAPI] 自动发现模型失败 %s: %v\n", packagePath, err)
+		}
+	}
+	return ext
 }
 
 // 为引擎添加OpenAPI支持的便捷方法
