@@ -1,4 +1,4 @@
-module thermometer
+module {project_name}
 
 go 1.23
 
