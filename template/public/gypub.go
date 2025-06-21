@@ -2,20 +2,21 @@ package public
 
 import (
 	"fmt"
-	"time"
+	"github.com/guyigood/gyweb/core/utils/datatype"
 	"{project_name}/model"
+	"time"
 
 	"github.com/guyigood/gyweb/core/middleware"
 	orm "github.com/guyigood/gyweb/core/orm/mysql"
 	"github.com/guyigood/gyweb/core/utils/common"
-	"github.com/guyigood/gyweb/core/utils/datatype"
 	"github.com/guyigood/gyweb/core/utils/redisutils"
 )
 
 var (
 	SysConfig model.AppConfig
 	Re_Client *redisutils.RedisClient
-	Db        *orm.DB
+	Tbinfo    []model.GLobalTbInfo
+	DB        *orm.DB
 )
 
 const (
@@ -30,15 +31,6 @@ func SysInit() {
 		return
 	}
 
-	dsn := SysConfig.Database.Username + ":" + SysConfig.Database.Password + "@tcp(" + SysConfig.Database.Host + ":" + datatype.TypetoStr(SysConfig.Database.Port) + ")/" + SysConfig.Database.Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
-	Db, err = orm.NewDB(SysConfig.Database.Dialect, dsn)
-	if err != nil {
-		panic(err)
-		return
-	}
-	Db.SetMaxIdleConns(SysConfig.Database.Pool.Max)
-	Db.SetMaxOpenConns(SysConfig.Database.Pool.Idle)
-	Db.SetConnMaxLifetime(time.Duration(SysConfig.Database.Pool.Lifetime) * time.Second)
 	redisUrl := fmt.Sprintf("%s:%d", SysConfig.Redis.Host, SysConfig.Redis.Port)
 	Re_Client, err = redisutils.NewRedisClient(redisUrl, SysConfig.Redis.Password, SysConfig.Redis.Db)
 	if err != nil {
@@ -50,6 +42,22 @@ func SysInit() {
 		fmt.Println(err1)
 	}
 	fmt.Println(redisUrl)
+	GetTbInfo()
+}
+
+func GetDb() *orm.DB {
+	if DB == nil {
+		dsn := SysConfig.Database.Username + ":" + SysConfig.Database.Password + "@tcp(" + SysConfig.Database.Host + ":" + datatype.TypetoStr(SysConfig.Database.Port) + ")/" + SysConfig.Database.Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
+		var err error
+		DB, err = orm.NewDB(SysConfig.Database.Dialect, dsn)
+		if err != nil {
+			panic(err)
+		}
+		DB.SetMaxIdleConns(SysConfig.Database.Pool.Max)
+		DB.SetMaxOpenConns(SysConfig.Database.Pool.Idle)
+		DB.SetConnMaxLifetime(time.Duration(SysConfig.Database.Pool.Lifetime) * time.Second)
+	}
+	return DB
 }
 func GetJwtConfig() *middleware.JWTConfig {
 	return &middleware.JWTConfig{
@@ -59,5 +67,4 @@ func GetJwtConfig() *middleware.JWTConfig {
 		ExpiresIn:     2 * 24 * time.Hour,     // token过期时间
 
 	}
-
 }

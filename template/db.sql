@@ -11,11 +11,61 @@
  Target Server Version : 80037 (8.0.37)
  File Encoding         : 65001
 
- Date: 13/06/2025 15:54:08
+ Date: 16/06/2025 15:22:02
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for device
+-- ----------------------------
+DROP TABLE IF EXISTS `device`;
+CREATE TABLE `device`  (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '设备ID，自增主键',
+  `mac_address` varchar(17) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '蓝牙MAC地址，格式如：00:1A:7D:DA:71:13',
+  `device_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '设备名称',
+  `device_model` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '设备型号',
+  `manufacturer` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '生产厂商',
+  `purchase_date` date NULL DEFAULT NULL COMMENT '购买日期',
+  `warranty_period` int NULL DEFAULT NULL COMMENT '保修期(月)',
+  `status` tinyint(1) NULL DEFAULT 1 COMMENT '设备状态：0-停用，1-启用',
+  `last_active_time` datetime NULL DEFAULT NULL COMMENT '最后活跃时间',
+  `battery_level` int NULL DEFAULT NULL COMMENT '电池电量百分比',
+  `firmware_version` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '固件版本',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `idx_mac_address`(`mac_address` ASC) USING BTREE COMMENT 'MAC地址唯一索引'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '蓝牙体温计设备表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of device
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for device_binding
+-- ----------------------------
+DROP TABLE IF EXISTS `device_binding`;
+CREATE TABLE `device_binding`  (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '绑定ID，自增主键',
+  `device_id` int NOT NULL COMMENT '设备ID',
+  `patient_id` int NOT NULL COMMENT '病人ID',
+  `binding_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '绑定时间',
+  `unbinding_time` datetime NULL DEFAULT NULL COMMENT '解绑时间',
+  `is_active` tinyint(1) NULL DEFAULT 1 COMMENT '是否有效：0-无效(已解绑)，1-有效',
+  `operator_id` int NULL DEFAULT NULL COMMENT '操作人员ID',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_device_id`(`device_id` ASC) USING BTREE COMMENT '设备ID索引',
+  INDEX `idx_patient_id`(`patient_id` ASC) USING BTREE COMMENT '病人ID索引',
+  INDEX `idx_is_active`(`is_active` ASC) USING BTREE COMMENT '状态索引'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '设备与病人绑定关系表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of device_binding
+-- ----------------------------
 
 -- ----------------------------
 -- Table structure for login
@@ -66,10 +116,10 @@ CREATE TABLE `nav_menu`  (
 -- Records of nav_menu
 -- ----------------------------
 INSERT INTO `nav_menu` VALUES (34, 0, '系统管理', NULL, 'Baseset', '/manger', 'el-icon-s-help', 1, 2, 0, '菜单', 0);
-INSERT INTO `nav_menu` VALUES (38, 34, '用户管理', NULL, 'User_list', '/manger/login', 'el-icon-receiving', 1, 1, 0, '页面', 0);
-INSERT INTO `nav_menu` VALUES (39, 34, '角色管理', NULL, 'Qxzlist', '/manger/role', 'el-icon-collection', 1, 2, 0, '页面', 0);
-INSERT INTO `nav_menu` VALUES (41, 34, '菜单管理', NULL, 'Nav', '/manger/nav', 'el-icon-files', 1, 3, 0, '页面', 0);
-INSERT INTO `nav_menu` VALUES (86, 34, '数据字典', NULL, 'Valdict', '/manger/valdict', 'el-icon-toilet-paper', 1, 5, 0, '页面', 0);
+INSERT INTO `nav_menu` VALUES (38, 34, '用户管理', NULL, 'User_list', '/sys/user', 'el-icon-receiving', 1, 1, 0, '页面', 0);
+INSERT INTO `nav_menu` VALUES (39, 34, '角色管理', NULL, 'Qxzlist', '/sys/role', 'el-icon-collection', 1, 2, 0, '页面', 0);
+INSERT INTO `nav_menu` VALUES (41, 34, '菜单管理', NULL, 'Nav', '/sys/resource/menu', 'el-icon-files', 1, 3, 0, '页面', 0);
+INSERT INTO `nav_menu` VALUES (86, 34, '数据字典', NULL, 'Valdict', '/dev/dict', 'el-icon-toilet-paper', 1, 5, 0, '页面', 0);
 INSERT INTO `nav_menu` VALUES (166, 34, '清除缓存', NULL, 'clearcache', '/manger/clearCatch', 'el-icon-office-building', 0, 4, 0, '页面', 0);
 INSERT INTO `nav_menu` VALUES (219, 34, '路由设置', NULL, 'routesetup', '/manger/routemap', 'el-icon-suitcase', 1, 50, 0, '页面', 0);
 INSERT INTO `nav_menu` VALUES (226, 34, '路由权限', NULL, 'routeqxguanli', '/manger/routerole', 'component', 0, 8, 0, '页面', 0);
@@ -112,7 +162,7 @@ CREATE TABLE `operation_log`  (
   `params` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求参数',
   `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '请求体内容',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 39 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '系统访问日志表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 45 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '系统访问日志表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of operation_log
@@ -155,6 +205,62 @@ INSERT INTO `operation_log` VALUES (35, '::1', '/swagger', '2025-06-11 17:15:42'
 INSERT INTO `operation_log` VALUES (36, '::1', '/swagger/openapi.json', '2025-06-11 17:15:43', '0', 'GET', '', '');
 INSERT INTO `operation_log` VALUES (37, '::1', '/swagger', '2025-06-11 17:20:30', '0', 'GET', '', '');
 INSERT INTO `operation_log` VALUES (38, '::1', '/swagger/openapi.json', '2025-06-11 17:20:30', '0', 'GET', '', '');
+INSERT INTO `operation_log` VALUES (39, '::1', '/swagger', '2025-06-16 14:26:25', '0', 'GET', '', '');
+INSERT INTO `operation_log` VALUES (40, '::1', '/swagger/openapi.json', '2025-06-16 14:26:25', '0', 'GET', '', '');
+INSERT INTO `operation_log` VALUES (41, '::1', '/swagger/openapi.json', '2025-06-16 14:34:26', '0', 'GET', '', '');
+INSERT INTO `operation_log` VALUES (42, '::1', '/api/auth/login', '2025-06-16 14:38:59', '0', 'POST', '', '{\r\n    \"code\": \"system\",\r\n    \"password\": \"tempor deserunt\"\r\n}');
+INSERT INTO `operation_log` VALUES (43, '::1', '/api/auth/login', '2025-06-16 14:43:08', '0', 'POST', '', '{\r\n    \"code\": \"system\",\r\n    \"password\": \"tempor deserunt\"\r\n}');
+INSERT INTO `operation_log` VALUES (44, '::1', '/api/auth/getmenu', '2025-06-16 14:54:32', '0', 'GET', '', '');
+
+-- ----------------------------
+-- Table structure for patient
+-- ----------------------------
+DROP TABLE IF EXISTS `patient`;
+CREATE TABLE `patient`  (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '病人ID，自增主键',
+  `patient_no` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '病人编号',
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '病人姓名',
+  `gender` tinyint(1) NULL DEFAULT NULL COMMENT '性别：0-女，1-男',
+  `birth_date` date NULL DEFAULT NULL COMMENT '出生日期',
+  `age` int NULL DEFAULT NULL COMMENT '年龄',
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '联系电话',
+  `address` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '住址',
+  `id_card` varchar(18) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '身份证号',
+  `medical_history` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL COMMENT '病史记录',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `idx_patient_no`(`patient_no` ASC) USING BTREE COMMENT '病人编号唯一索引'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '病人信息表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of patient
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for posture_analysis
+-- ----------------------------
+DROP TABLE IF EXISTS `posture_analysis`;
+CREATE TABLE `posture_analysis`  (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '分析ID，自增主键',
+  `record_id` int NOT NULL COMMENT '关联的传感器记录ID',
+  `patient_id` int NOT NULL COMMENT '病人ID',
+  `posture_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '姿态类型：平躺/侧卧/坐立/站立/运动等',
+  `posture_confidence` decimal(3, 2) NULL DEFAULT NULL COMMENT '姿态识别置信度(0-1)',
+  `movement_intensity` decimal(4, 2) NULL DEFAULT NULL COMMENT '运动强度',
+  `stability_score` decimal(3, 2) NULL DEFAULT NULL COMMENT '稳定性评分(0-1)',
+  `analysis_time` datetime NOT NULL COMMENT '分析时间',
+  `analysis_status` tinyint(1) NULL DEFAULT 1 COMMENT '分析状态：0-失败，1-成功',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_record_id`(`record_id` ASC) USING BTREE COMMENT '记录ID索引',
+  INDEX `idx_patient_id`(`patient_id` ASC) USING BTREE COMMENT '病人ID索引',
+  INDEX `idx_posture_type`(`posture_type` ASC) USING BTREE COMMENT '姿态类型索引'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '姿态分析记录表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of posture_analysis
+-- ----------------------------
 
 -- ----------------------------
 -- Table structure for role
@@ -177,6 +283,68 @@ CREATE TABLE `role`  (
 -- ----------------------------
 INSERT INTO `role` VALUES ('超级管理', '404,344,403,412,353,392,394,400,395,355,396,411,397,398,407,408,409,34,38,39,41,354,86,368,410,219', 1, 0, '404,344,403,412,353,392,394,400,395,355,396,411,397,398,407,408,409,34,38,39,41,354,86,368,410,219', 12, 0, 0);
 INSERT INTO `role` VALUES ('Guest', '404,344,403,353', 42, 1, '404,344,403,353', 50, 0, 0);
+
+-- ----------------------------
+-- Table structure for sensor_record
+-- ----------------------------
+DROP TABLE IF EXISTS `sensor_record`;
+CREATE TABLE `sensor_record`  (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '记录ID，自增主键',
+  `device_id` int NOT NULL COMMENT '设备ID',
+  `patient_id` int NOT NULL COMMENT '病人ID',
+  `temperature` decimal(4, 2) NOT NULL COMMENT '体温值(摄氏度)',
+  `accel_x` decimal(6, 3) NULL DEFAULT NULL COMMENT '加速度X轴(m/s²)',
+  `accel_y` decimal(6, 3) NULL DEFAULT NULL COMMENT '加速度Y轴(m/s²)',
+  `accel_z` decimal(6, 3) NULL DEFAULT NULL COMMENT '加速度Z轴(m/s²)',
+  `gyro_x` decimal(6, 3) NULL DEFAULT NULL COMMENT '陀螺仪X轴(°/s)',
+  `gyro_y` decimal(6, 3) NULL DEFAULT NULL COMMENT '陀螺仪Y轴(°/s)',
+  `gyro_z` decimal(6, 3) NULL DEFAULT NULL COMMENT '陀螺仪Z轴(°/s)',
+  `battery_level` int NULL DEFAULT NULL COMMENT '电量',
+  `measure_time` datetime NOT NULL COMMENT '测量时间',
+  `measure_location` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '测量部位(腋下/口腔/肛门/耳温等)',
+  `measure_status` tinyint(1) NULL DEFAULT 1 COMMENT '测量状态：0-异常，1-正常',
+  `data_quality` tinyint(1) NULL DEFAULT 1 COMMENT '数据质量：0-低质量，1-高质量',
+  `mqtt_topic` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'MQTT主题',
+  `mqtt_message_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'MQTT消息ID',
+  `raw_data` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '原始16进制数据',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_device_id`(`device_id` ASC) USING BTREE COMMENT '设备ID索引',
+  INDEX `idx_patient_id`(`patient_id` ASC) USING BTREE COMMENT '病人ID索引',
+  INDEX `idx_measure_time`(`measure_time` ASC) USING BTREE COMMENT '测量时间索引',
+  INDEX `idx_temperature`(`temperature` ASC) USING BTREE COMMENT '体温索引'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '传感器测量记录表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of sensor_record
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for temperature_alert
+-- ----------------------------
+DROP TABLE IF EXISTS `temperature_alert`;
+CREATE TABLE `temperature_alert`  (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '报警ID，自增主键',
+  `record_id` int NOT NULL COMMENT '关联的传感器记录ID',
+  `patient_id` int NOT NULL COMMENT '病人ID',
+  `temperature` decimal(4, 2) NOT NULL COMMENT '报警体温值',
+  `alert_type` tinyint(1) NOT NULL COMMENT '报警类型：1-低烧，2-高烧，3-超高烧',
+  `alert_time` datetime NOT NULL COMMENT '报警时间',
+  `alert_status` tinyint(1) NULL DEFAULT 0 COMMENT '处理状态：0-未处理，1-已处理',
+  `handler_id` int NULL DEFAULT NULL COMMENT '处理人员ID',
+  `handle_time` datetime NULL DEFAULT NULL COMMENT '处理时间',
+  `handle_notes` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '处理备注',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_record_id`(`record_id` ASC) USING BTREE COMMENT '记录ID索引',
+  INDEX `idx_patient_id`(`patient_id` ASC) USING BTREE COMMENT '病人ID索引',
+  INDEX `idx_alert_status`(`alert_status` ASC) USING BTREE COMMENT '报警状态索引'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '体温异常报警记录表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of temperature_alert
+-- ----------------------------
 
 -- ----------------------------
 -- Table structure for valdict

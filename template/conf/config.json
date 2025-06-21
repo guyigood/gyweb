@@ -1,23 +1,38 @@
-{"database": {
-  "dbname": "medical",
-  "host": "localhost",
-  "port": 3306,
-  "username": "root",
-  "password": "gy7210",
-  "dialect": "mysql",
-  "pool": {
-    "max": 100,
-    "idle": 10,
-    "lifetime": 3600
+{
+  "database": {
+    "dbname": "medical",
+    "host": "localhost",
+    "port": 3306,
+    "username": "root",
+    "password": "gy7210",
+    "dialect": "mysql",
+    "pool": {
+      "max": 100,
+      "idle": 10,
+      "lifetime": 3600
+    },
+    "logic-delete-field": "is_del",
+    "logic-delete-value": 1
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": ""
+  },
+  "server": {
+    "name": "app",
+    "port": 3000,
+    "debug": true
+  },
+  "mqtt": {
+    "broker": "mqtt.eclipseprojects.io",
+    "port": 1883,
+    "client_id": "gyweb_mqtt_client",
+    "username": "",
+    "password": "",
+    "topics": [
+      "/data/sensor/#"
+    ]
   }
-},"redis": {
-  "host": "localhost",
-  "port": 6379,
-  "db": 0,
-  "password": ""
-},"server": {
-  "name": "app",
-  "port": 3000,
-  "debug": true
-}
 }
