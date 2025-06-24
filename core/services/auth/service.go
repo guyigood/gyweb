@@ -142,10 +142,16 @@ func (s *AuthService) initializeDefaults() {
 
 	// 默认角色
 	if s.config.EnableSuperAdmin {
+		// 将[]*Permission转换为[]Permission
+		permissions := make([]Permission, len(defaultPermissions))
+		for i, perm := range defaultPermissions {
+			permissions[i] = *perm
+		}
+
 		s.roles[s.config.SuperAdminRole] = &Role{
 			ID:          s.config.SuperAdminRole,
 			Name:        "超级管理员",
-			Permissions: *(*[]Permission)(defaultPermissions),
+			Permissions: permissions,
 			IsActive:    true,
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -539,9 +545,14 @@ func (s *AuthService) CreateMiddleware() gyarn.HandlerFunc {
 		}
 
 		// 构建授权上下文
+		username := ""
+		if usernameVal, exists := c.Get("username"); exists {
+			username = usernameVal.(string)
+		}
+
 		authCtx := &AuthContext{
 			UserID:      userID.(string),
-			Username:    c.GetString("username"),
+			Username:    username,
 			RequestPath: c.Request.URL.Path,
 			Method:      c.Request.Method,
 			Attributes:  make(map[string]string),
