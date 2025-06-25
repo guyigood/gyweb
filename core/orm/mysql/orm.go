@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/guyigood/gyweb/core/middleware"
 )
@@ -513,4 +514,13 @@ func (db *DB) Query(sql string, args ...any) ([]MapModel, error) {
 // exec 执行sql语句
 func (db *DB) Exec(sql string, args ...any) (sql.Result, error) {
 	return db.db.Exec(sql, args...)
+}
+
+// 雪花算法计算id
+func (db *DB) SnowflakeID() (int64, error) {
+	node, err := snowflake.NewNode(1)
+	if err != nil {
+		return 0, err
+	}
+	return node.Generate().Int64(), nil
 }
