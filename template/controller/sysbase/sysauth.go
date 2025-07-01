@@ -2,9 +2,10 @@ package sysbase
 
 import (
 	"encoding/json"
+	"strings"
+	"time"
 	"{project_name}/model"
 	"{project_name}/public"
-	"time"
 
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/utils/common"
@@ -49,6 +50,7 @@ func GetToken(c *gyarn.Context) string {
 	}
 	return token
 }
+
 // Login 用户登
 // Login 用户登录
 // @Summary 用户登录
@@ -124,7 +126,7 @@ func Login(c *gyarn.Context) {
 // @Failure 401 {object} ErrorResponse "未授权，请先登录"
 // @Router /api/auth/userinfo [get]
 func UserInfo(c *gyarn.Context) {
-	uuid  := GetToken(c)
+	uuid := GetToken(c)
 	if uuid == "" {
 		c.Error(101, "请先登录")
 		return
@@ -199,7 +201,7 @@ func GetRoleMenu(c *gyarn.Context) {
 // @Failure 101 {object} ErrorResponse "请先登录"
 // @Router /api/auth/logout [post]
 func Logout(c *gyarn.Context) {
-	token := c.GetHeader("Token")
+	token := GetToken(c)
 	if token == "" {
 		c.Error(101, "请先登录")
 		return
