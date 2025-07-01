@@ -16,7 +16,7 @@ import (
  */
 func CheckAuth(c *gyarn.Context) bool {
 	loginKey := "login"
-	token := c.GetHeader("Token")
+	token := GetToken(c)
 
 	user := new(model.LoginUser)
 	loginFlag, err := public.Re_Client.Exists(token)
@@ -40,6 +40,15 @@ func CheckAuth(c *gyarn.Context) bool {
 	return false
 }
 
+func GetToken(c *gyarn.Context) string {
+	token := c.GetHeader("Authorization")
+	if token == "" {
+		token = c.GetHeader("Token")
+	} else {
+		token = strings.TrimPrefix(token, "Bearer ")
+	}
+	return token
+}
 // Login 用户登
 // Login 用户登录
 // @Summary 用户登录
@@ -115,7 +124,7 @@ func Login(c *gyarn.Context) {
 // @Failure 401 {object} ErrorResponse "未授权，请先登录"
 // @Router /api/auth/userinfo [get]
 func UserInfo(c *gyarn.Context) {
-	uuid := c.GetHeader("Token")
+	uuid  := GetToken(c)
 	if uuid == "" {
 		c.Error(101, "请先登录")
 		return
