@@ -304,7 +304,8 @@ func (c *Context) Unauthorized(message string) {
 	if message == "" {
 		message = "未授权访问"
 	}
-	c.Error(ErrCodeUnauthorized, message)
+	http.Error(c.Writer, message, http.StatusUnauthorized)
+	//c.Error(ErrCodeUnauthorized, message)
 }
 
 // Forbidden 403错误响应
