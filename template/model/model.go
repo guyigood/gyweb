@@ -43,6 +43,7 @@ type LoginUser struct {
 	Username string `json:"username"`
 	RoleId   int    `json:"role_id"`
 	RoleName string `json:"role_name"`
+	Roles    string `json:"roles"`
 	Memo     string `json:"memo"`
 }
 
@@ -88,3 +89,4 @@ type GLobalFdInfo struct {
 	QueryType    string `json:"query_type"`
 	IsPk         bool   `json:"is_pk"`
 }
+ 

@@ -1,6 +1,8 @@
 package public
 
-import "github.com/guyigood/gyweb/core/services/smcrypto"
+import (
+	"github.com/guyigood/gyweb/core/services/smcrypto"
+)
 
 func Sm2Encrpt(plainText string) (string, error) {
 	sm2 := smcrypto.NewSmCryptoService()
@@ -16,3 +18,4 @@ func Sm3Hash(plainText string) string {
 	sm3 := smcrypto.NewSmCryptoService()
 	return sm3.GetSM3HashString(plainText)
 }
+

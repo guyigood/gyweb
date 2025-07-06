@@ -20,7 +20,6 @@ func LogDb() middleware.HandlerFunc {
 		}
 
 		t := time.Now().Format("2006-01-02 15:04:05")
-		db := public.GetDb()
 		login, ok := c.Get("login")
 		user_id := 0
 		if ok {
@@ -39,9 +38,13 @@ func LogDb() middleware.HandlerFunc {
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(body_b))
 		}
 
-		// 异步记录日志，避免阻塞请求处理
+		// 异步记录日志，使用独立的数据库连接避免冲突
 		go func() {
-			_, err := db.Table("operation_log").Insert(map[string]interface{}{
+			// 获取独立的数据库连接
+			dbConn := public.GetDbConnection()
+			defer dbConn.Close() // 确保连接被归还到池中
+			
+			_, err := dbConn.Table("operation_log").Insert(map[string]interface{}{
 				"ip":       c.ClientIP(),
 				"url":      c.Request.URL.Path,
 				"add_time": t,
@@ -55,5 +58,4 @@ func LogDb() middleware.HandlerFunc {
 
 		c.Next()
 	}
-
 }

@@ -7,7 +7,6 @@ import (
 	"{project_name}/public"
 
 	"github.com/guyigood/gyweb/core/gyarn"
-	"github.com/guyigood/gyweb/core/middleware"
 	"github.com/guyigood/gyweb/core/utils/datatype"
 )
 
@@ -16,13 +15,17 @@ import (
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @RequestBody {object} model.Page
-// @Success 200 {object} PageResponse "查询结果"
-// @Failure 101 {object} ErrorResponse "参数错误"
-// @Failure 102 {object} ErrorResponse "表名不能为空"
-// @Failure 103 {object} ErrorResponse "获取总数失败"
-// @Failure 104 {object} ErrorResponse "查询失败"
-// @Router /api/db/page [post]
+// @Param table path string true "表名"
+// @Param page_no query int false "页码"
+// @Param page_size query int false "每页数量"
+// @Param sort_by query string false "排序字段"
+// @Param order query string false "排序方式"
+// @Success 200 {object} map[string]interface{} "查询结果"
+// @Failure 101 {object} map[string]interface{} "参数错误"
+// @Failure 102 {object} map[string]interface{} "表名不能为空"
+// @Failure 103 {object} map[string]interface{} "获取总数失败"
+// @Failure 104 {object} map[string]interface{} "查询失败"
+// @Router /api/db/page/{table} [get]
 func Page(c *gyarn.Context) {
 
 	tableName := c.Param("table")
@@ -47,9 +50,11 @@ func Page(c *gyarn.Context) {
 		c.Error(101, "参数错误")
 		return
 	}
-	middleware.DebugVar("tbinfo", tbinfo)
-	db := public.GetDb()
-	countdb := public.GetDb()
+	//middleware.DebugVar("tbinfo", tbinfo)
+	db := public.GetDbConnection()
+	defer db.Close()
+	countdb := public.GetDbConnection()
+	defer countdb.Close()
 	query := db.Table(tableName)
 	countQuery := countdb.Table(tableName)
 	if tbinfo.JoinTable != "" {
@@ -59,7 +64,7 @@ func Page(c *gyarn.Context) {
 	for _, v := range tbinfo.FdInfo {
 		if v.FieldName == public.SysConfig.Database.LogicDeleteField {
 			query.Where(public.SysConfig.Database.LogicDeleteField+"<>?", public.SysConfig.Database.LogicDeleteValue)
-			countdb.Where(public.SysConfig.Database.LogicDeleteField+"<>?", public.SysConfig.Database.LogicDeleteValue)
+			countQuery.Where(public.SysConfig.Database.LogicDeleteField+"<>?", public.SysConfig.Database.LogicDeleteValue)
 		}
 		if v.IsSearchable {
 			searchkey := c.Query(v.FieldName)
@@ -67,8 +72,8 @@ func Page(c *gyarn.Context) {
 				continue
 			}
 			whereClause, whereArgs := buildConditions(v, searchkey)
-			middleware.DebugVar("whereClause", whereClause)
-			middleware.DebugVar("whereArgs", whereArgs)
+			//middleware.DebugVar("whereClause", whereClause)
+			//middleware.DebugVar("whereArgs", whereArgs)
 			if whereClause != "" {
 				query = query.Where(whereClause, whereArgs...)
 				countQuery = countQuery.Where(whereClause, whereArgs...)
@@ -136,7 +141,7 @@ func buildConditions(fdInfo model.GLobalFdInfo, value string) (string, []interfa
 		return fmt.Sprintf("%s < ?", fdInfo.FieldName), []interface{}{value}
 	case "in":
 		if fdInfo.FieldType == "varchar" {
-			//将value逗号串变成带‘的逗号串
+			//将value逗号串变成带'的逗号串
 			value = strings.ReplaceAll(value, ",", "','")
 			return fmt.Sprintf("%s IN (?)", fdInfo.FieldName), []interface{}{value}
 		} else {
@@ -179,12 +184,14 @@ func buildConditions(fdInfo model.GLobalFdInfo, value string) (string, []interfa
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @RequestBody {object} model.Page
-// @Success 200 {object} ListResponse "查询结果"
-// @Failure 101 {object} ErrorResponse "参数错误"
-// @Failure 102 {object} ErrorResponse "表名不能为空"
-// @Failure 104 {object} ErrorResponse "查询失败"
-// @Router /api/db/list [post]
+// @Param table path string true "表名"
+// @Param sort_by query string false "排序字段"
+// @Param order query string false "排序方式"
+// @Success 200 {object} map[string]interface{} "查询结果"
+// @Failure 101 {object} map[string]interface{} "参数错误"
+// @Failure 102 {object} map[string]interface{} "表名不能为空"
+// @Failure 104 {object} map[string]interface{} "查询失败"
+// @Router /api/db/list/{table} [get]
 func List(c *gyarn.Context) {
 	tableName := c.Param("table")
 	if tableName == "" {
@@ -197,7 +204,8 @@ func List(c *gyarn.Context) {
 		c.Error(101, "参数错误")
 		return
 	}
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 	query := db.Table(tableName)
 
 	if tbinfo.JoinTable != "" {
@@ -244,18 +252,19 @@ func List(c *gyarn.Context) {
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @RequestBody {object} model.SaveData
-// @Success 200 {object} SaveResponse "保存成功，返回保存后的数据"
-// @Failure 101 {object} ErrorResponse "参数错误"
-// @Failure 102 {object} ErrorResponse "表名不能为空"
-// @Failure 103 {object} ErrorResponse "保存数据不能为空"
-// @Failure 104 {object} ErrorResponse "缺少必填字段"
-// @Failure 105 {object} ErrorResponse "必填字段不能为空"
-// @Failure 106 {object} ErrorResponse "没有需要更新的数据"
-// @Failure 107 {object} ErrorResponse "更新失败"
-// @Failure 108 {object} ErrorResponse "获取更新后数据失败"
-// @Failure 109 {object} ErrorResponse "插入失败"
-// @Router /api/db/save [post]
+// @Param table path string true "表名"
+// @Param body body model.SaveData true "要保存的数据"
+// @Success 200 {object} map[string]interface{} "保存成功，返回保存后的数据"
+// @Failure 101 {object} map[string]interface{} "参数错误"
+// @Failure 102 {object} map[string]interface{} "表名不能为空"
+// @Failure 103 {object} map[string]interface{} "保存数据不能为空"
+// @Failure 104 {object} map[string]interface{} "缺少必填字段"
+// @Failure 105 {object} map[string]interface{} "必填字段不能为空"
+// @Failure 106 {object} map[string]interface{} "没有需要更新的数据"
+// @Failure 107 {object} map[string]interface{} "更新失败"
+// @Failure 108 {object} map[string]interface{} "获取更新后数据失败"
+// @Failure 109 {object} map[string]interface{} "插入失败"
+// @Router /api/db/save/{table} [post]
 func Save(c *gyarn.Context) {
 	webdata := make(map[string]interface{})
 	if err := c.BindJSON(&webdata); err != nil {
@@ -273,8 +282,10 @@ func Save(c *gyarn.Context) {
 		c.Error(101, "参数错误")
 		return
 	}
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 	for _, v := range tbinfo.FdInfo {
+
 		if v.IsRequired && !v.IsPk {
 			if _, ok := webdata[v.FieldName]; !ok {
 				c.Error(104, fmt.Sprintf("缺少必填字段: %s", v.FieldName))
@@ -283,7 +294,7 @@ func Save(c *gyarn.Context) {
 		}
 		if v.IsUnique {
 			if _, ok := webdata[v.FieldName]; ok {
-				if datatype.TypetoStr(webdata[tbinfo.PrimaryKey]) == "" {
+				if datatype.TypetoStr(webdata[tbinfo.PrimaryKey]) == "" || webdata[tbinfo.PrimaryKey] == nil {
 					count, err := db.Table(tableName).Where(v.FieldName+" = ?", webdata[v.FieldName]).Count()
 					if err != nil {
 						c.Error(104, fmt.Sprintf("查询失败: %v", err))
@@ -306,6 +317,11 @@ func Save(c *gyarn.Context) {
 				}
 			}
 		}
+		if _, ok := webdata[v.FieldName]; ok {
+			if datatype.TypetoStr(webdata[v.FieldName]) == "" {
+				webdata[v.FieldName] = nil
+			}
+		}
 	}
 
 	if datatype.TypetoStr(webdata[tbinfo.PrimaryKey]) == "" {
@@ -326,15 +342,15 @@ func Save(c *gyarn.Context) {
 
 // Delete 删除数据
 // @Summary 删除数据
-// @Description 根据ID删除指定表中的数据记录
+// @Description 通用数据删除接口
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param table query string true "表名" example("users")
-// @Param id query string true "要删除的记录ID" example("1")
-// @Success 200 {object} DeleteResponse "删除成功"
-// @Failure 104 {object} ErrorResponse "删除失败"
-// @Router /api/db/delete [post]
+// @Param table path string true "表名"
+// @Query id path string true "要删除的记录ID"
+// @Success 200 {object} map[string]interface{} "删除成功"
+// @Failure 104 {object} map[string]interface{} "删除失败"
+// @Router /api/db/delete/{table}/{id} [delete]
 func Delete(c *gyarn.Context) {
 	tableName := c.Param("table")
 	if tableName == "" {
@@ -359,7 +375,8 @@ func Delete(c *gyarn.Context) {
 			is_del = false
 		}
 	}
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 	query := db.Table(tableName)
 	query.Where(fmt.Sprintf("%s = ?", tbinfo.PrimaryKey), id)
 	if is_del {
@@ -376,15 +393,15 @@ func Delete(c *gyarn.Context) {
 
 // Detail 获取详情数据
 // @Summary 获取详情数据
-// @Description 根据ID获取指定表中单条记录的详细信息
+// @Description 通用数据详情查询接口
 // @Tags 数据库通用操作
 // @Accept json
 // @Produce json
-// @Param table query string true "表名" example("users")
-// @Param id query string true "记录ID" example("1")
-// @Success 200 {object} DetailResponse "查询成功，返回记录详情"
-// @Failure 104 {object} ErrorResponse "查询失败"
-// @Router /api/db/detail [get]
+// @Param table path string true "表名"
+// @Param id path string true "记录ID"
+// @Success 200 {object} map[string]interface{} "查询成功，返回记录详情"
+// @Failure 104 {object} map[string]interface{} "查询失败"
+// @Router /api/db/detail/{table}/{id} [get]
 func Detail(c *gyarn.Context) {
 	tableName := c.Param("table")
 	if tableName == "" {
@@ -404,7 +421,8 @@ func Detail(c *gyarn.Context) {
 		return
 	}
 
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 	query := db.Table(tableName)
 	if tbinfo.JoinTable != "" {
 		query = query.Join(tbinfo.JoinTable).Select(tbinfo.JoinField + "," + tableName + ".*")
@@ -417,4 +435,65 @@ func Detail(c *gyarn.Context) {
 	}
 
 	c.Success(data)
+}
+
+// UpdateData 更新数据
+// @Summary 更新数据
+// @Description 更新数据
+// @Tags 数据库通用操作
+// @Accept json
+// @Produce json
+// @Param table path string true "表名"
+func UpdateData(c *gyarn.Context) {
+	tableName := c.Param("table")
+	if tableName == "" {
+		c.Error(102, "表名不能为空")
+		return
+	}
+	webdata := make(map[string]interface{})
+	if err := c.BindJSON(&webdata); err != nil {
+		c.Error(101, "参数错误")
+		return
+	}
+	if webdata["id"] == nil {
+		c.Error(101, "ID不能为空")
+		return
+	}
+	id := webdata["id"]
+	delete(webdata, "id")
+	db := public.GetDbConnection()
+	defer db.Close()
+	db.Table(tableName).Where("id = ?", id).Update(webdata)
+	c.Success("更新成功")
+}
+
+// BatchUpdate 批量更新数据
+// @Summary 批量更新数据
+// @Description 批量更新数据
+// @Tags 数据库通用操作
+// @Accept json
+// @Produce json
+// @Param table path string true "表名"
+
+func BatchUpdate(c *gyarn.Context) {
+	tableName := c.Param("table")
+	if tableName == "" {
+		c.Error(102, "表名不能为空")
+		return
+	}
+	webdata := make(map[string]interface{})
+	if err := c.BindJSON(&webdata); err != nil {
+		c.Error(101, "参数错误")
+		return
+	}
+	if webdata["id"] == nil {
+		c.Error(101, "ID不能为空")
+		return
+	}
+	ids := webdata["ids"]
+	delete(webdata, "ids")
+	db := public.GetDbConnection()
+	defer db.Close()
+	db.Table(tableName).Where("id in (?)", ids).Update(webdata)
+	c.Success("更新成功")
 }

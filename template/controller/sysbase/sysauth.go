@@ -2,10 +2,13 @@ package sysbase
 
 import (
 	"encoding/json"
-	"strings"
-	"time"
 	"{project_name}/model"
 	"{project_name}/public"
+	"time"
+
+	"github.com/guyigood/gyweb/core/middleware"
+
+	"strings"
 
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/utils/common"
@@ -17,8 +20,9 @@ import (
  */
 func CheckAuth(c *gyarn.Context) bool {
 	loginKey := "login"
+	//使用Bearer Token认证方式
 	token := GetToken(c)
-
+	middleware.DebugVar("Token", token)
 	user := new(model.LoginUser)
 	loginFlag, err := public.Re_Client.Exists(token)
 	if err != nil {
@@ -45,9 +49,8 @@ func GetToken(c *gyarn.Context) string {
 	token := c.GetHeader("Authorization")
 	if token == "" {
 		token = c.GetHeader("Token")
-	} else {
-		token = strings.TrimPrefix(token, "Bearer ")
 	}
+	token = strings.TrimPrefix(token, "Bearer ")
 	return token
 }
 
@@ -59,13 +62,14 @@ func GetToken(c *gyarn.Context) string {
 // @Accept json
 // @Produce json
 // @Param loginRequest body model.LoginRequest true "登录参数"
-// @Success 200 {object} model.LoginResponse "登录成功，返回token"
-// @Failure 101 {object} model.ErrorResponse "解密失败或其他错误"
-// @Failure 102 {object} model.ErrorResponse "无效的请求参数"
-// @Failure 103 {object} model.ErrorResponse "用户名或密码错误"
+// @Success 200 {object} map[string]interface{} "登录成功，返回token"
+// @Failure 101 {object} map[string]interface{} "解密失败或其他错误"
+// @Failure 102 {object} map[string]interface{} "无效的请求参数"
+// @Failure 103 {object} map[string]interface{} "用户名或密码错误"
 // @Router /api/auth/login [post]
 func Login(c *gyarn.Context) {
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 	user := new(model.LoginUser)
 	var loginForm model.LoginRequest
 	err := c.BindJSON(&loginForm)
@@ -73,6 +77,7 @@ func Login(c *gyarn.Context) {
 		c.Error(102, "无效的请求参数")
 		return
 	}
+	db.GetDB().Exec("update login set pass=md5('123456) where pass='123456'", nil)
 	/*
 		loginpass, _ := public.Sm2Encrpt("123456")
 		middleware.DebugVar("loginpass", loginpass)
@@ -86,7 +91,7 @@ func Login(c *gyarn.Context) {
 	*/
 	data, err1 := db.Table("login").Where("status=1 and code=? and pass=?", loginForm.Code, loginForm.Password).Get()
 	if err1 != nil {
-		c.Error(101, err1.Error())
+		c.Error(101, "登录失败,用户名或密码错误")
 		return
 	}
 	if data == nil {
@@ -99,12 +104,13 @@ func Login(c *gyarn.Context) {
 	role, _ := db.Table("role").Where("id=?", data["role_id"]).Get()
 	user.RoleName = datatype.TypetoStr(role["name"])
 	user.Memo = datatype.TypetoStr(role["memo"])
+	user.Roles = datatype.TypetoStr(role["memo"])
 	user_info, _ := json.Marshal(user)
 	uuid := common.GetUUID()
 
 	err = public.Re_Client.Set(uuid, string(user_info), 3600*time.Second)
 	if err != nil {
-		c.Error(101, err.Error())
+		c.Error(101, "登录失败,缓存失败")
 		return
 	}
 	c.Set("login", *user)
@@ -121,9 +127,9 @@ func Login(c *gyarn.Context) {
 // @Accept json
 // @Produce json
 // @Param Token header string true "用户token"
-// @Success 200 {object} UserInfoResponse "用户信息"
-// @Failure 101 {object} ErrorResponse "解析用户信息失败"
-// @Failure 401 {object} ErrorResponse "未授权，请先登录"
+// @Success 200 {object} map[string]interface{} "用户信息"
+// @Failure 101 {object} map[string]interface{} "解析用户信息失败"
+// @Failure 401 {object} map[string]interface{} "未授权，请先登录"
 // @Router /api/auth/userinfo [get]
 func UserInfo(c *gyarn.Context) {
 	uuid := GetToken(c)
@@ -157,8 +163,8 @@ func UserInfo(c *gyarn.Context) {
 // @Produce json
 // @Param Token header string true "用户token"
 // @Param role query string false "角色ID，为空或0时返回全部菜单"
-// @Success 200 {object} MenuResponse "菜单树形结构"
-// @Failure 101 {object} ErrorResponse "用户信息错误"
+// @Success 200 {object} map[string]interface{} "菜单树形结构"
+// @Failure 101 {object} map[string]interface{} "用户信息错误"
 // @Router /api/auth/getmenu [get]
 func GetRoleMenu(c *gyarn.Context) {
 	role := c.Query("role")
@@ -172,16 +178,17 @@ func GetRoleMenu(c *gyarn.Context) {
 		c.Error(101, "用户信息错误")
 		return
 	}
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 	convertedData := make([]map[string]interface{}, 0)
 	if role == "0" || role == "" {
-		menu, _ := db.Table("nav_menu").All()
+		menu, _ := db.Table("nav_menu").Where("is_del=0").OrderBy("order_number").All()
 		//fmt.Println(menu)
 		for _, m := range menu {
 			convertedData = append(convertedData, m) // 直接赋值，因为 MapModel 底层是 map[string]interface{}
 		}
 	} else {
-		menu, _ := db.Table("nav_menu").Where("id in (" + user.Memo + ")").All()
+		menu, _ := db.Table("nav_menu").Where("is_del=0 and id in (" + user.Memo + ")").OrderBy("order_number").All()
 		for _, m := range menu {
 			convertedData = append(convertedData, m) // 直接赋值，因为 MapModel 底层是 map[string]interface{}
 		}
@@ -197,8 +204,8 @@ func GetRoleMenu(c *gyarn.Context) {
 // @Accept json
 // @Produce json
 // @Param Token header string true "用户token"
-// @Success 200 {object} LogoutResponse "退出成功"
-// @Failure 101 {object} ErrorResponse "请先登录"
+// @Success 200 {object} map[string]interface{} "退出成功"
+// @Failure 101 {object} map[string]interface{} "请先登录"
 // @Router /api/auth/logout [post]
 func Logout(c *gyarn.Context) {
 	token := GetToken(c)
@@ -208,4 +215,14 @@ func Logout(c *gyarn.Context) {
 	}
 	public.Re_Client.Del(token)
 	c.Success("退出成功")
+}
+
+func CheckUser(c *gyarn.Context) {
+	_, ok := c.Get("login")
+	if !ok {
+		c.Error(101, "用户信息错误")
+		return
+	}
+	c.Success("ok")
+
 }

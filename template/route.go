@@ -2,7 +2,6 @@ package main
 
 import (
 	"{project_name}/controller/dbcommon"
-	"{project_name}/controller/statistics"
 	"{project_name}/controller/sysbase"
 
 	"github.com/guyigood/gyweb/core/engine"
@@ -22,13 +21,14 @@ func RegRoute(r *engine.Engine) {
 	db := r.Group("/api/db")
 	{
 		db.GET("/page/:table", dbcommon.Page)
-		db.POST("/list/:table", dbcommon.List)
+		db.GET("/list/:table", dbcommon.List)
 		db.GET("/detail/:table", dbcommon.Detail)
 		db.POST("/save/:table", dbcommon.Save)
-		db.POST("/delete/:table", dbcommon.Delete)
+		db.GET("/delete/:table", dbcommon.Delete)
 		db.GET("/build", dbcommon.BuildTable)
+		db.POST("/update/:table", dbcommon.UpdateData)
+		db.POST("/batchupdate/:table", dbcommon.BatchUpdate)
 
 	}
 
-	 
 }

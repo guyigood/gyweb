@@ -21,11 +21,12 @@ import (
 // @Router /api/db/build [get]
 func BuildTable(c *gyarn.Context) {
 	database := c.Query("database")
-	db := public.GetDb()
+	db := public.GetDbConnection()
+	defer db.Close()
 
 	// 获取当前数据库名
 	if database == "" {
-		dbResult, err := db.Query("SELECT DATABASE() as db_name")
+		dbResult, err := db.GetDB().Query("SELECT DATABASE() as db_name")
 		if err != nil {
 			c.Error(500, "获取当前数据库名失败: "+err.Error())
 			return
@@ -61,13 +62,13 @@ func BuildTable(c *gyarn.Context) {
 
 	if len(tables) == 0 {
 		// 尝试查询所有数据库看看是否有权限问题
-		allDbs, dbErr := public.GetDb().Query("SHOW DATABASES")
+		allDbs, dbErr := db.GetDB().Query("SHOW DATABASES")
 		if dbErr == nil {
 			fmt.Printf("[DEBUG] 可访问的数据库: %v\n", allDbs)
 		}
 
 		// 尝试查询当前数据库中的所有表
-		allTables, tableErr := public.GetDb().Query("SHOW TABLES")
+		allTables, tableErr := db.GetDB().Query("SHOW TABLES")
 		if tableErr == nil {
 			fmt.Printf("[DEBUG] SHOW TABLES 结果: %v\n", allTables)
 		}
@@ -89,9 +90,10 @@ func BuildTable(c *gyarn.Context) {
 	// 同步表信息
 	for _, table := range tables {
 		// 跳过sys系列表本身
-		if table.TableName == "sys_table_info" || table.TableName == "sys_field_info" || table.TableName == "sys_query_type" {
-			continue
-		}
+		//if table.TableName == "sys_table_info" || table.TableName == "sys_field_info" || table.TableName == "sys_query_type" {
+		//if table.TableName == "sys_query_type" {
+		//	continue
+		//}
 
 		// 添加调试信息
 		if table.TableName == "" {
@@ -318,8 +320,10 @@ func getTableInfo(database string) ([]model.TableInfo, error) {
 	// 先尝试使用SHOW TABLES，这个更可靠
 	showTablesQuery := "SHOW TABLES"
 	fmt.Printf("[DEBUG] 执行 SHOW TABLES\n")
+	db := public.GetDbConnection()
+	defer db.Close()
+	rows, err := db.GetDB().Query(showTablesQuery)
 
-	rows, err := public.GetDb().Query(showTablesQuery)
 	if err != nil {
 		return nil, fmt.Errorf("SHOW TABLES 查询失败: %v", err)
 	}
@@ -349,7 +353,7 @@ func getTableInfo(database string) ([]model.TableInfo, error) {
 			FROM information_schema.tables 
 			WHERE table_schema = ? AND table_name = ?
 		`
-		commentRows, commentErr := public.GetDb().Query(commentQuery, database, tableName)
+		commentRows, commentErr := db.GetDB().Query(commentQuery, database, tableName)
 		if commentErr == nil && len(commentRows) > 0 {
 			if commentRows[0]["table_comment"] != nil {
 				tableComment = fmt.Sprintf("%v", commentRows[0]["table_comment"])
@@ -390,8 +394,9 @@ func getFieldInfo(database, tableName string) ([]model.FieldInfo, error) {
 		WHERE table_schema = ? AND table_name = ?
 		ORDER BY ordinal_position
 	`
-
-	rows, err := public.GetDb().Query(query, database, tableName)
+	db := public.GetDbConnection()
+	defer db.Close()
+	rows, err := db.GetDB().Query(query, database, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("查询字段信息失败: %v", err)
 	}

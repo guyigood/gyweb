@@ -3,13 +3,14 @@ package public
 import (
 	"errors"
 	"fmt"
-	"{project_name}/model"
+	"thermometer/model"
 
 	"github.com/guyigood/gyweb/core/utils/datatype"
 )
 
 func GetTbInfo() {
-	Db := GetDb()
+	Db := GetDbConnection()
+	defer Db.Close()
 	data, err := Db.Table("sys_table_info").All()
 	if err != nil {
 		fmt.Println(err)
