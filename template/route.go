@@ -28,6 +28,7 @@ func RegRoute(r *engine.Engine) {
 		db.GET("/build", dbcommon.BuildTable)
 		db.POST("/update/:table", dbcommon.UpdateData)
 		db.POST("/batchupdate/:table", dbcommon.BatchUpdate)
+		db.GET("/clearcache", dbcommon.ClearCache)
 
 	}
 

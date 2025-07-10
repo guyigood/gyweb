@@ -70,8 +70,8 @@ func CustomAuth(r *engine.Engine) {
 			c.Error(401, "未授权")
 		}).
 		AddWhitelist(
-			[]string{"/api/auth/login", "/api/db/build", "/swagger", "/swagger/", "/swagger/index.html", "/docs", "/docs/"}, // 白名单路径
-			[]string{"/static/", "/public/", "/swagger/", "/api/db/"},                                                       // 白名单前缀
+			[]string{"/api/auth/login", "/api/db/build", "/api/db/clearcache", "/swagger", "/swagger/", "/swagger/index.html", "/docs", "/docs/"}, // 白名单路径
+			[]string{"/static/", "/public/", "/swagger/"}, // 白名单前缀
 			nil,
 		).
 		Build()

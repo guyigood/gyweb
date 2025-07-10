@@ -497,3 +497,8 @@ func BatchUpdate(c *gyarn.Context) {
 	db.Table(tableName).Where("id in (?)", ids).Update(webdata)
 	c.Success("更新成功")
 }
+
+func ClearCache(c *gyarn.Context) {
+	public.GetTbInfo()
+	c.Success("清除缓存成功")
+}
