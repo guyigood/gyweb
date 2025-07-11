@@ -3,8 +3,8 @@ package dbcommon
 import (
 	"fmt"
 	"strings"
-	"{project_name}/model"
-	"{project_name}/public"
+	"thermometer/model"
+	"thermometer/public"
 
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/utils/datatype"
@@ -69,8 +69,14 @@ func Page(c *gyarn.Context) {
 		if v.IsSearchable {
 			searchkey := c.Query(v.FieldName)
 			if searchkey == "" {
+				whereClause, whereArgs := buildmaxmin(v.FieldName, c)
+				if whereClause != "" {
+					query = query.Where(whereClause, whereArgs...)
+					countQuery = countQuery.Where(whereClause, whereArgs...)
+				}
 				continue
 			}
+
 			whereClause, whereArgs := buildConditions(v, searchkey)
 			//middleware.DebugVar("whereClause", whereClause)
 			//middleware.DebugVar("whereArgs", whereArgs)
@@ -120,6 +126,24 @@ func Page(c *gyarn.Context) {
 	}
 
 	c.Success(result)
+}
+
+func buildmaxmin(fdname string, c *gyarn.Context) (string, []interface{}) {
+	min := c.Query(fdname + "_min")
+	max := c.Query(fdname + "_max")
+	if min == "" && max == "" {
+		return "", nil
+	}
+	if min != "" && max != "" {
+		return fmt.Sprintf("%s BETWEEN ? AND ?", fdname), []interface{}{min, max}
+	}
+	if min != "" {
+		return fmt.Sprintf("%s >= ?", fdname), []interface{}{min}
+	}
+	if max != "" {
+		return fmt.Sprintf("%s <= ?", fdname), []interface{}{max}
+	}
+	return "", nil
 }
 
 // buildSimpleConditions 构建简单的条件列表
