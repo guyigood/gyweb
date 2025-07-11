@@ -3,8 +3,8 @@ package dbcommon
 import (
 	"fmt"
 	"strings"
-	"thermometer/model"
-	"thermometer/public"
+	"{project_name}/model"
+	"{project_name}/public"
 
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/utils/datatype"
