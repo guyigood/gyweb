@@ -524,3 +524,44 @@ func (db *DB) SnowflakeID() (int64, error) {
 	}
 	return node.Generate().Int64(), nil
 }
+
+func (db *DB) QueryRow(sql string, args ...any) (MapModel, error) {
+	middleware.DebugSQL(sql, args...)
+	rows, err := db.db.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	var results []MapModel
+	for rows.Next() {
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		result := make(MapModel)
+		for i, col := range columns {
+			val := values[i]
+			if b, ok := val.([]byte); ok {
+				result[strings.ToLower(col)] = string(b)
+			} else {
+				result[strings.ToLower(col)] = val
+			}
+		}
+		results = append(results, result)
+		break
+	}
+
+	return results[0], nil
+}
