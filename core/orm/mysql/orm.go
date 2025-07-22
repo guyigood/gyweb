@@ -565,3 +565,16 @@ func (db *DB) QueryRow(sql string, args ...any) (MapModel, error) {
 
 	return results[0], nil
 }
+
+func (db *DB) Begin() (*sql.Tx, error) {
+	tx, err := db.db.Begin()
+	return tx, err
+}
+
+func (db *DB) Commit(tx *sql.Tx) error {
+	return tx.Commit()
+}
+
+func (db *DB) Rollback(tx *sql.Tx) error {
+	return tx.Rollback()
+}
