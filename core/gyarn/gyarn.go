@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -345,6 +346,23 @@ func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 	}
 	f.Close()
 	return fh, nil
+}
+
+func (c *Context) SaveUploadedFile(header *multipart.FileHeader, dst string) error {
+	f, err := header.Open()
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, f)
+	return err
 }
 
 // GetRawData 获取请求的原始数据

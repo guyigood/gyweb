@@ -6,14 +6,14 @@ import (
 	"{project_name}/controller/sysbase"
 	"{project_name}/public"
 	"{project_name}/service"
-
+	"os"
 	"{project_name}/lib"
-
+	"github.com/guyigood/gyweb/core/utils/datatype"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/guyigood/gyweb/core/engine"
 	"github.com/guyigood/gyweb/core/gyarn"
 	"github.com/guyigood/gyweb/core/middleware"
-	//"github.com/guyigood/gyweb/core/openapi"
+	"github.com/guyigood/gyweb/core/openapi"
 )
 
 func main() {
@@ -71,7 +71,7 @@ func CustomAuth(r *engine.Engine) {
 		}).
 		AddWhitelist(
 			[]string{"/api/auth/login", "/api/db/build", "/api/db/clearcache", "/swagger", "/swagger/", "/swagger/index.html", "/docs", "/docs/"}, // 白名单路径
-			[]string{"/static/", "/public/", "/swagger/"}, // 白名单前缀
+			[]string{"/static/", "/public/", "/swagger/"},                                                                                         // 白名单前缀
 			nil,
 		).
 		Build()

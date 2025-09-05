@@ -3,7 +3,7 @@ package public
 import (
 	"errors"
 	"fmt"
-	"thermometer/model"
+	"{project_name}/model"
 
 	"github.com/guyigood/gyweb/core/utils/datatype"
 )

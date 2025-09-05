@@ -2,10 +2,9 @@ package public
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"sync"
-	"thermometer/model"
+	"{project_name}/model"
 	"time"
 
 	"github.com/guyigood/gyweb/core/utils/datatype"
