@@ -30,7 +30,9 @@ func UploadFile(c *gyarn.Context, filename string, uploadPath string) (string, e
 	date := time.Now().Format("2006-01-02")
 	uploadPath += date + "/"
 	// 创建目录
-	os.MkdirAll(uploadPath, 0755)
+	if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
+		os.MkdirAll(uploadPath, 0755)
+	}
 	// 保存文件
 	return SaveFileSecure(file, uploadPath)
 
