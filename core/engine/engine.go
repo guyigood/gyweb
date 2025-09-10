@@ -116,6 +116,41 @@ func (engine *Engine) LoadHTMLGlob(pattern string) {
 	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
 }
 
+// Static 设置静态文件服务
+// 使用默认配置提供静态文件服务
+// 参数：
+//   relativePath - URL路径前缀，如 "/static"
+//   root - 静态文件根目录，如 "./static"
+func (engine *Engine) Static(relativePath, root string) *Engine {
+	config := DefaultStaticConfig()
+	config.Prefix = relativePath
+	config.Root = root
+	engine.Use(Static(config))
+	return engine
+}
+
+// StaticFS 设置基于http.FileSystem的静态文件服务
+// 提供更大的灵活性，可以使用嵌入的文件系统或其他自定义文件系统
+// 参数：
+//   relativePath - URL路径前缀，如 "/static"
+//   fs - 文件系统实例
+func (engine *Engine) StaticFS(relativePath string, fs http.FileSystem) *Engine {
+	engine.Use(StaticFS(fs, relativePath))
+	return engine
+}
+
+// StaticFile 设置单个静态文件服务
+// 用于提供单个文件的服务，如favicon.ico
+// 参数：
+//   relativePath - URL路径，如 "/favicon.ico"
+//   filepath - 文件完整路径
+func (engine *Engine) StaticFile(relativePath, filepath string) *Engine {
+	engine.GET(relativePath, func(c *gyarn.Context) {
+		http.ServeFile(c.Writer, c.Request, filepath)
+	})
+	return engine
+}
+
 // ServeHTTP 实现 http.Handler 接口
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Printf("[DEBUG] 收到请求: %s %s\n", req.Method, req.URL.Path)
