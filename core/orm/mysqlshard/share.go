@@ -1,6 +1,5 @@
 package mysqlshard
 
-
 import (
 	"database/sql"
 	"fmt"
@@ -16,10 +15,10 @@ import (
 
 // ShardConfig 分表配置
 type ShardConfig struct {
-	MaxRecords    int64             // 每个分表的最大记录数，默认50万
-	ShardTables   map[string]int    // 记录每个基础表名对应的当前分表数量
-	TableStructs  map[string]string // 记录表结构SQL，用于创建新分表
-	mutex         sync.RWMutex      // 读写锁保护并发访问
+	MaxRecords   int64             // 每个分表的最大记录数，默认50万
+	ShardTables  map[string]int    // 记录每个基础表名对应的当前分表数量
+	TableStructs map[string]string // 记录表结构SQL，用于创建新分表
+	mutex        sync.RWMutex      // 读写锁保护并发访问
 }
 
 // DB 数据库连接结构
@@ -166,7 +165,7 @@ func (db *DB) getShardTableName(baseTable string) (string, error) {
 // initShardTables 初始化分表信息，从数据库中查找现有分表
 func (db *DB) initShardTables(baseTable string) error {
 	// 查询数据库中所有相关的分表
-	sql := "SHOW TABLES LIKE ?" 
+	sql := "SHOW TABLES LIKE ?"
 	pattern := baseTable + "_%"
 	rows, err := db.db.Query(sql, pattern)
 	if err != nil {
@@ -180,7 +179,7 @@ func (db *DB) initShardTables(baseTable string) error {
 		if err := rows.Scan(&tableName); err != nil {
 			continue
 		}
-		
+
 		// 解析分表编号
 		if strings.HasPrefix(tableName, baseTable+"_") {
 			suffixStr := strings.TrimPrefix(tableName, baseTable+"_")
@@ -513,12 +512,12 @@ func (db *DB) Count() (int64, error) {
 }
 
 // Insert 插入数据（支持 map 和结构体）
-func (db *DB) Insert(data interface{}) (int64, error) {
+func (db *DB) Insert(data interface{}) (sql.Result, error) {
 	// 如果有基础表名，重新获取当前应该使用的分表名
 	if db.baseTable != "" {
 		shardTableName, err := db.getShardTableName(db.baseTable)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get shard table name: %v", err)
+			return nil, fmt.Errorf("failed to get shard table name: %v", err)
 		}
 		db.table = shardTableName
 	}
@@ -553,7 +552,7 @@ func (db *DB) Insert(data interface{}) (int64, error) {
 			args = append(args, val.Field(i).Interface())
 		}
 	default:
-		return 0, fmt.Errorf("unsupported data type: %T", data)
+		return nil, fmt.Errorf("unsupported data type: %T", data)
 	}
 
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
@@ -564,14 +563,14 @@ func (db *DB) Insert(data interface{}) (int64, error) {
 	middleware.DebugSQL(sql, args...)
 	result, err := db.db.Exec(sql, args...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return result.LastInsertId()
+	return result, nil
 }
 
 // Update 更新数据（支持 map 和结构体）
-func (db *DB) Update(data interface{}) (int64, error) {
+func (db *DB) Update(data interface{}) (sql.Result, error) {
 	var sets []string
 	var args []interface{}
 
@@ -599,7 +598,7 @@ func (db *DB) Update(data interface{}) (int64, error) {
 			args = append(args, val.Field(i).Interface())
 		}
 	default:
-		return 0, fmt.Errorf("unsupported data type: %T", data)
+		return nil, fmt.Errorf("unsupported data type: %T", data)
 	}
 
 	sql := fmt.Sprintf("UPDATE %s SET %s", db.table, strings.Join(sets, ", "))
@@ -612,14 +611,14 @@ func (db *DB) Update(data interface{}) (int64, error) {
 	middleware.DebugSQL(sql, args...)
 	result, err := db.db.Exec(sql, args...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return result.RowsAffected()
+	return result, nil
 }
 
 // Delete 删除数据
-func (db *DB) Delete() (int64, error) {
+func (db *DB) Delete() (sql.Result, error) {
 	sql := fmt.Sprintf("DELETE FROM %s", db.table)
 
 	if len(db.where) > 0 {
@@ -629,10 +628,10 @@ func (db *DB) Delete() (int64, error) {
 	middleware.DebugSQL(sql, db.whereArgs...)
 	result, err := db.db.Exec(sql, db.whereArgs...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return result.RowsAffected()
+	return result, nil
 }
 
 // Transaction 执行事务函数
@@ -754,16 +753,16 @@ func (db *DB) AllFromAllShards() ([]MapModel, error) {
 		// 临时设置表名进行查询
 		originalTable := db.table
 		db.table = table
-		
+
 		results, err := db.All()
 		if err != nil {
 			// 恢复原表名
 			db.table = originalTable
 			return nil, fmt.Errorf("failed to query from table %s: %v", table, err)
 		}
-		
+
 		allResults = append(allResults, results...)
-		
+
 		// 恢复原表名
 		db.table = originalTable
 	}
