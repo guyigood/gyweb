@@ -326,7 +326,7 @@ func (db *DB) Count() (int64, error) {
 }
 
 // Insert 插入数据（支持 map 和结构体）
-func (db *DB) Insert(data interface{}) (int64, error) {
+func (db *DB) Insert(data interface{}) (sql.Result, error) {
 	var fields []string
 	var placeholders []string
 	var args []interface{}
@@ -357,7 +357,7 @@ func (db *DB) Insert(data interface{}) (int64, error) {
 			args = append(args, val.Field(i).Interface())
 		}
 	default:
-		return 0, fmt.Errorf("unsupported data type: %T", data)
+		return nil, fmt.Errorf("unsupported data type: %T", data)
 	}
 
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
@@ -368,14 +368,14 @@ func (db *DB) Insert(data interface{}) (int64, error) {
 	middleware.DebugSQL(sql, args...)
 	result, err := db.db.Exec(sql, args...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return result.LastInsertId()
+	return result, nil
 }
 
 // Update 更新数据（支持 map 和结构体）
-func (db *DB) Update(data interface{}) (int64, error) {
+func (db *DB) Update(data interface{}) (sql.Result, error) {
 	var sets []string
 	var args []interface{}
 
@@ -403,7 +403,7 @@ func (db *DB) Update(data interface{}) (int64, error) {
 			args = append(args, val.Field(i).Interface())
 		}
 	default:
-		return 0, fmt.Errorf("unsupported data type: %T", data)
+		return nil, fmt.Errorf("unsupported data type: %T", data)
 	}
 
 	sql := fmt.Sprintf("UPDATE %s SET %s", db.table, strings.Join(sets, ", "))
@@ -416,14 +416,14 @@ func (db *DB) Update(data interface{}) (int64, error) {
 	middleware.DebugSQL(sql, args...)
 	result, err := db.db.Exec(sql, args...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return result.RowsAffected()
+	return result, nil
 }
 
 // Delete 删除数据
-func (db *DB) Delete() (int64, error) {
+func (db *DB) Delete() (sql.Result, error) {
 	sql := fmt.Sprintf("DELETE FROM %s", db.table)
 
 	if len(db.where) > 0 {
@@ -433,10 +433,10 @@ func (db *DB) Delete() (int64, error) {
 	middleware.DebugSQL(sql, db.whereArgs...)
 	result, err := db.db.Exec(sql, db.whereArgs...)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return result.RowsAffected()
+	return result, nil
 }
 
 // Transaction 执行事务函数
