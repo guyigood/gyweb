@@ -12,20 +12,29 @@ import (
 	"github.com/guyigood/gyweb/core/middleware"
 )
 
+// 修改说明：
+// 为了统一 SQL 语句的记录和追踪机制，在所有执行 SQL 的方法中添加了相同的 SQL 记录逻辑。
+// 这样可以确保通过 GetLastSql() 方法能够获取到最后执行的 SQL 语句，便于调试和日志追踪。
+// 修改的方法包括：Insert、Update、Delete、Query、QueryRow、Exec 等。
+
 // DB 数据库连接结构
 type DB struct {
 	db *sql.DB
 	// 查询构建器字段
-	table     string
-	fields    []string
-	where     []string
-	whereArgs []interface{}
-	orderBy   string
-	limit     int
-	offset    int
-	joins     []string
-	groupBy   string
-	having    string
+	table           string
+	fields          []string
+	where           []string
+	whereArgs       []interface{}
+	orderBy         string
+	limit           int
+	offset          int
+	incVal          float64
+	incField        string
+	sumVal          float64
+	sumField        string
+	joins           []string
+	groupBy         string
+	LastSql, having string
 }
 
 // Model 基础模型接口
@@ -78,6 +87,97 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	db.db.SetConnMaxLifetime(d)
 }
 
+func (db *DB) GetLastSql() string {
+	return db.LastSql
+}
+
+// Inc 原子性递增字段值
+// 实现 SQL: UPDATE table SET field=field+value WHERE conditions
+// 参数:
+//   field: 要递增的字段名
+//   val: 递增的数值
+// 返回: sql.Result 和 error，与标准 update 操作相同
+func (db *DB) Inc(field string, val float64) (sql.Result, error) {
+	// 参数验证
+	if db.table == "" {
+		return nil, fmt.Errorf("table name is required")
+	}
+	if field == "" {
+		return nil, fmt.Errorf("field name is required")
+	}
+
+	// 构建 UPDATE SQL 语句
+	sql := fmt.Sprintf("UPDATE %s SET %s = %s + ?", db.table, field, field)
+	args := []interface{}{val}
+
+	// 添加 WHERE 条件
+	if len(db.where) > 0 {
+		sql += " WHERE " + strings.Join(db.where, " AND ")
+		args = append(args, db.whereArgs...)
+	}
+
+	// 调试输出
+	middleware.DebugSQL(sql, args...)
+	
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
+
+	// 执行 SQL 语句
+	result, err := db.db.Exec(sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to increment field %s: %w", field, err)
+	}
+
+	return result, nil
+}
+
+// Sum 计算指定字段的总和
+// 实现 SQL: SELECT SUM(field) FROM table WHERE conditions
+// 参数:
+//   field: 要求和的字段名
+// 返回: float64 总和值和 error，NULL 值会被处理为 0.0
+func (db *DB) Sum(field string) (float64, error) {
+	// 参数验证
+	if db.table == "" {
+		return 0.0, fmt.Errorf("table name is required")
+	}
+	if field == "" {
+		return 0.0, fmt.Errorf("field name is required")
+	}
+
+	// 构建 SELECT SUM SQL 语句
+	sql := fmt.Sprintf("SELECT COALESCE(SUM(%s), 0) FROM %s", field, db.table)
+	var args []interface{}
+
+	// 添加 WHERE 条件
+	if len(db.where) > 0 {
+		sql += " WHERE " + strings.Join(db.where, " AND ")
+		args = append(args, db.whereArgs...)
+	}
+
+	// 调试输出
+	middleware.DebugSQL(sql, args...)
+	
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
+
+	// 执行查询
+	var sum float64
+	err := db.db.QueryRow(sql, args...).Scan(&sum)
+	if err != nil {
+		return 0.0, fmt.Errorf("failed to calculate sum for field %s: %w", field, err)
+	}
+
+	return sum, nil
+}
 // Model 使用模型
 func (db *DB) Model(model interface{}) *DB {
 	db.resetQuery()
@@ -213,7 +313,11 @@ func (db *DB) buildQuery() (string, []interface{}) {
 			sql.WriteString(fmt.Sprintf(" OFFSET %d", db.offset))
 		}
 	}
-
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql.String(), args...)
+	} else {
+		db.LastSql = sql.String()
+	}
 	return sql.String(), args
 }
 
@@ -366,6 +470,12 @@ func (db *DB) Insert(data interface{}) (sql.Result, error) {
 		strings.Join(placeholders, ", "))
 
 	middleware.DebugSQL(sql, args...)
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
 	result, err := db.db.Exec(sql, args...)
 	if err != nil {
 		return nil, err
@@ -414,6 +524,12 @@ func (db *DB) Update(data interface{}) (sql.Result, error) {
 	}
 
 	middleware.DebugSQL(sql, args...)
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
 	result, err := db.db.Exec(sql, args...)
 	if err != nil {
 		return nil, err
@@ -429,8 +545,14 @@ func (db *DB) Delete() (sql.Result, error) {
 	if len(db.where) > 0 {
 		sql += " WHERE " + strings.Join(db.where, " AND ")
 	}
-
+ 
 	middleware.DebugSQL(sql, db.whereArgs...)
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(db.whereArgs) > 0 {
+		db.LastSql = fmt.Sprintf(sql, db.whereArgs...)
+	} else {
+		db.LastSql = sql
+	}
 	result, err := db.db.Exec(sql, db.whereArgs...)
 	if err != nil {
 		return nil, err
@@ -473,6 +595,12 @@ func (db *DB) Close() error {
 // query 查询sql语句
 func (db *DB) Query(sql string, args ...any) ([]MapModel, error) {
 	middleware.DebugSQL(sql, args...)
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
 	rows, err := db.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
@@ -513,6 +641,13 @@ func (db *DB) Query(sql string, args ...any) ([]MapModel, error) {
 
 // exec 执行sql语句
 func (db *DB) Exec(sql string, args ...any) (sql.Result, error) {
+	middleware.DebugSQL(sql, args...)
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
 	return db.db.Exec(sql, args...)
 }
 
@@ -527,6 +662,12 @@ func (db *DB) SnowflakeID() (int64, error) {
 
 func (db *DB) QueryRow(sql string, args ...any) (MapModel, error) {
 	middleware.DebugSQL(sql, args...)
+	// 统一记录执行的 SQL 语句，便于调试和日志追踪
+	if len(args) > 0 {
+		db.LastSql = fmt.Sprintf(sql, args...)
+	} else {
+		db.LastSql = sql
+	}
 	rows, err := db.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
